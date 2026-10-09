@@ -205,9 +205,21 @@
     overflow: hidden;
 }
 
-/* 顶栏只有 60px 高，折射带要窄一些，否则整条都在弯折 */
-[data-skin="glass"] #header .lg-tint {
-    background: rgba(8, 12, 28, .32);
+/* 顶栏只有 60px 高，折射带要窄一些，否则整条都在弯折。
+   两档玻璃的底色不同：
+     液态 —— 压得很淡，中间能看清背景，只有边缘在弯
+     毛玻璃 —— 没有折射，靠模糊 + 稍厚的底色保证可读性 */
+[data-skin="glass"][data-lg-glass="liquid"] #header .lg-tint { background: rgba(8, 12, 28, .16); }
+[data-skin="glass"][data-lg-glass="frost"]  #header .lg-tint { background: rgba(8, 12, 28, .44); }
+
+/* ---- 毛玻璃档：不做折射 ----
+   顶栏 / 侧边栏背后就是页面背景，直接上 backdrop-filter 即可。
+   折射层整个隐藏（连位移贴图都不用建，见 JS 里的档位判断）。 */
+[data-skin="glass"][data-lg-glass="frost"] .lg-refract { display: none; }
+[data-skin="glass"][data-lg-glass="frost"] #header,
+[data-skin="glass"][data-lg-glass="frost"] #sidebar {
+    backdrop-filter: blur(var(--lg-blur)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(160%);
 }
 
 [data-skin="glass"] #header .header-container { position: relative; z-index: 4; }
@@ -268,9 +280,8 @@
     [data-skin="glass"] #sidebar { position: relative; }
 }
 
-[data-skin="glass"] #sidebar .lg-tint {
-    background: rgba(6, 10, 24, .44);
-}
+[data-skin="glass"][data-lg-glass="liquid"] #sidebar .lg-tint { background: rgba(6, 10, 24, .28); }
+[data-skin="glass"][data-lg-glass="frost"]  #sidebar .lg-tint { background: rgba(6, 10, 24, .56); }
 
 /* 导航内容要浮在玻璃层之上 */
 [data-skin="glass"] #sidebar .nav-menu {

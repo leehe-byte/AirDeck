@@ -165,8 +165,12 @@
     /* bezel 是折射带宽度，refraction 是强度（都按 px 走，不再乘一次设备像素比）。
        顶栏只有 60px 高，折射带要窄；侧边栏宽，可以用大一点。 */
     var SURFACES = [
-        { sel: '#header', bezel: 16, refraction: 1.10, radius: 0, depth: 0.10 },
-        { sel: '#sidebar', bezel: 26, refraction: 0.95, radius: 0, depth: 0.22 }
+        // depth=0 是关键：中间完全不畸变，只有贴边那一圈在弯 ——
+        // 就是 demo 里那种「边缘看得出扭曲、中间背景看得清」的观感。
+        // 之前给顶栏/侧边栏加了 depthEffect，中间也在弯，反而糊。
+        // refraction 调大让边缘的弯折在照片类背景上明确可见。
+        { sel: '#header', bezel: 18, refraction: 1.70, radius: 0, depth: 0 },
+        { sel: '#sidebar', bezel: 30, refraction: 1.45, radius: 0, depth: 0 }
     ];
 
     var surfaces = [];
@@ -213,16 +217,18 @@
             feImage: null, blobNodes: createBlobSet(copy)
         };
         blobGroups.push({ nodes: s.blobNodes });
-        rebuildSurface(s);
+        // 毛玻璃档不显示折射层，就不用白建位移贴图（两张图加起来约 50 万像素，
+        // 手机上是一次能感觉到的启动开销）。切到液态时再补建。
+        if (bg.glass === 'liquid') rebuildSurface(s);
         return s;
     }
 
     /** 元素尺寸变了才需要重建贴图（这一步不便宜，只在 resize 时做） */
-    function rebuildSurface(s) {
+    function rebuildSurface(s, force) {
         var rect = s.el.getBoundingClientRect();
         var gw = Math.max(4, Math.round(rect.width));
         var gh = Math.max(4, Math.round(rect.height));
-        if (gw === s._gw && gh === s._gh) return;
+        if (!force && gw === s._gw && gh === s._gh) return;
         s._gw = gw; s._gh = gh;
 
         var mw = gw + MARGIN * 2;
@@ -385,6 +391,7 @@
     var bg = {
         mode: 'aurora', solid: '#0b1020', image: '',
         url: '', urlStamp: 0,          // 服务端缓存的背景图：源地址 + 落盘时间（做缓存失效）
+        glass: 'liquid',               // 玻璃档位：'liquid' 液态折射 / 'frost' 毛玻璃 / 'off' 关闭
         blur: true, dim: 0.25, motion: true,
         saved: false                   // 本机是否手动设置过；没设置过时跟随服务端
     };
@@ -401,11 +408,19 @@
         // 顶栏和侧边栏用的是 SVG 折射滤镜，不受影响，招牌的折射效果还在。
         if (raw === null && window.innerWidth <= 768) bg.blur = false;
 
+        // 兼容旧的开关键（lg-skin：'1' 开 / '0' 关）
+        if (raw === null) {
+            try {
+                if (localStorage.getItem(STORE_KEY) === '0') bg.glass = 'off';
+            } catch (e) {}
+        }
+
         try {
             if (raw) {
                 var o = JSON.parse(raw);
                 if (o && typeof o === 'object') {
                     if (o.mode) bg.mode = o.mode;
+                    if (o.glass) bg.glass = o.glass;
                     if (o.solid) bg.solid = o.solid;
                     if (typeof o.image === 'string') bg.image = o.image;
                     if (typeof o.blur === 'boolean') bg.blur = o.blur;
@@ -425,6 +440,14 @@
 
     function applyBg() {
         var root = document.documentElement;
+        // 玻璃档位决定 data-skin / data-lg-glass 两个属性，全部视觉分支都挂在这上面
+        if (bg.glass === 'off') {
+            root.removeAttribute(SKIN_ATTR);
+            root.removeAttribute('data-lg-glass');
+        } else {
+            root.setAttribute(SKIN_ATTR, SKIN_NAME);
+            root.setAttribute('data-lg-glass', bg.glass);
+        }
         if (bg.mode === 'url') {
             // 用服务端缓存的那张。带上 savedAt 做缓存失效 ——
             // 重新抓取后立刻换新，平时刷新/重启拿到的都是同一张。
@@ -443,7 +466,7 @@
         root.setAttribute('data-lg-blur', bg.blur ? 'on' : 'off');
         // 一层半透明黑，纯合成；不用 filter: brightness()（全屏滤镜，代价高）
         root.style.setProperty('--lg-dim-op', bg.dim.toFixed(3));
-        startMotion();
+        if (isOn()) startMotion(); else stopMotion();
     }
 
     /** 读图 → 等比缩到 1600px 内 → 转 JPEG，避免把大图塞进 localStorage */
@@ -505,7 +528,7 @@
     }
 
     function isOn() {
-        return document.documentElement.getAttribute(SKIN_ATTR) === SKIN_NAME;
+        return bg.glass !== 'off';
     }
 
     function enable() {
@@ -547,16 +570,19 @@
         document.querySelectorAll('.lg-spec').forEach(function (n) { n.remove(); });
     }
 
-    function setSkin(on, persist) {
-        if (on) {
-            document.documentElement.setAttribute(SKIN_ATTR, SKIN_NAME);
-            enable();
-        } else {
-            document.documentElement.removeAttribute(SKIN_ATTR);
-            disable();
-        }
-        if (persist !== false) {
-            try { localStorage.setItem(STORE_KEY, on ? '1' : '0'); } catch (e) {}
+    /** 切换玻璃档位：'liquid' 液态折射 / 'frost' 毛玻璃 / 'off' 关闭 */
+    function setGlass(mode, persist) {
+        if (['liquid', 'frost', 'off'].indexOf(mode) < 0) mode = 'liquid';
+        var wasOn = isOn();
+        bg.glass = mode;
+        if (persist !== false) saveBg();
+        applyBg();                                   // 先定属性，再建/拆玻璃层
+        if (isOn() && !wasOn) enable();
+        if (!isOn() && wasOn) disable();
+        // 切到液态时补建位移贴图（毛玻璃档下是跳过的）
+        if (bg.glass === 'liquid') {
+            for (var i = 0; i < surfaces.length; i++) rebuildSurface(surfaces[i], true);
+            syncAll();
         }
         updateButton();
         syncSettingsUI();
@@ -596,39 +622,57 @@
             '  <div class="lg-modal-head"><h3>外观设置</h3>' +
             '    <button class="lg-x" type="button" data-act="close">✕</button></div>' +
             '  <div class="lg-modal-body">' +
-            '    <div class="lg-row"><span>液态玻璃</span>' +
-            '      <label class="lg-switch"><input type="checkbox" id="lg-opt-skin"><i></i></label></div>' +
-            '    <div class="lg-row"><span>毛玻璃模糊<small>关掉可明显提升老设备流畅度</small></span>' +
+
+            '    <div class="lg-sub">玻璃效果</div>' +
+            '    <div class="lg-seg" id="lg-glass-seg">' +
+            '      <button type="button" data-glass="liquid">液态</button>' +
+            '      <button type="button" data-glass="frost">毛玻璃</button>' +
+            '      <button type="button" data-glass="off">关闭</button>' +
+            '    </div>' +
+            '    <div class="lg-hint" id="lg-glass-hint"></div>' +
+            '    <div class="lg-row" id="lg-row-blur"><span>卡片毛玻璃模糊' +
+            '      <small>关掉可明显提升老设备流畅度</small></span>' +
             '      <label class="lg-switch"><input type="checkbox" id="lg-opt-blur"><i></i></label></div>' +
-            '    <div class="lg-row"><span>背景动效<small>数据刷新频繁时，关掉可以消除闪烁</small></span>' +
-            '      <label class="lg-switch"><input type="checkbox" id="lg-opt-motion"><i></i></label></div>' +
+
             '    <div class="lg-sub">背景</div>' +
             '    <div class="lg-seg" id="lg-bg-seg">' +
             '      <button type="button" data-mode="aurora">极光</button>' +
             '      <button type="button" data-mode="solid">纯色</button>' +
             '      <button type="button" data-mode="image">图片</button>' +
+            '      <button type="button" data-mode="url">网址</button>' +
             '    </div>' +
+
             '    <div class="lg-row" id="lg-solid-row"><span>背景色</span>' +
             '      <input type="color" id="lg-opt-solid"></div>' +
+
             '    <div class="lg-row" id="lg-image-row"><span>自定义图片</span>' +
             '      <button type="button" class="lg-file-btn" data-act="pick">选择图片</button></div>' +
-            '    <div class="lg-row"><span>背景暗化<small>自定义图片偏亮时，靠它拉回对比度</small></span>' +
-            '      <input type="range" id="lg-opt-dim" min="0" max="70" step="5" class="lg-range"></div>' +
-            '    <input type="file" accept="image/*" id="lg-file-input" hidden>' +
-            '    <div class="lg-sub">背景图网址</div>' +
-            '    <div class="lg-hint" style="margin-top:0;margin-bottom:8px">' +
-            '      抓一次存到服务端，刷新和重启都不会变，所有设备共用同一张。' +
-            '      直接填图片地址，或者接口地址（例如 Bing 每日一图的 ' +
-            '      <code>HPImageArchive.aspx?format=js&amp;idx=0&amp;n=1</code>，会自动从返回的 JSON 里取图）。</div>' +
-            '    <div class="lg-row" style="flex-direction:column;align-items:stretch;gap:8px">' +
-            '      <input type="text" id="lg-opt-url" class="lg-input" spellcheck="false" ' +
-            '        placeholder="https://www.bing.com/HPImageArchive.aspx?format=js&amp;idx=0&amp;n=1">' +
-            '      <div style="display:flex;gap:8px">' +
-            '        <button type="button" class="lg-file-btn" data-act="fetch">抓取并应用</button>' +
-            '        <button type="button" class="lg-file-btn" data-act="clearbg">清除服务端背景</button>' +
+
+            '    <div id="lg-url-row">' +
+            '      <div class="lg-hint" style="margin-top:8px;margin-bottom:8px">' +
+            '        抓一次存到服务端，刷新和重启都不会变，所有设备共用同一张。' +
+            '        直接填图片地址，或接口地址（Bing 每日一图 ' +
+            '        <code>HPImageArchive.aspx?format=js&amp;idx=0&amp;n=1</code>，会自动取 JSON 里的图片地址）。</div>' +
+            '      <div class="lg-row" style="flex-direction:column;align-items:stretch;gap:8px">' +
+            '        <input type="text" id="lg-opt-url" class="lg-input" spellcheck="false" ' +
+            '          placeholder="https://www.bing.com/HPImageArchive.aspx?format=js&amp;idx=0&amp;n=1">' +
+            '        <div style="display:flex;gap:8px">' +
+            '          <button type="button" class="lg-file-btn" data-act="fetch">抓取并应用</button>' +
+            '          <button type="button" class="lg-file-btn" data-act="clearbg">清除</button>' +
+            '        </div>' +
             '      </div>' +
             '    </div>' +
-            '    <div class="lg-hint" id="lg-hint">图片会自动缩到 1600px 内并压缩后保存在本机。</div>' +
+
+            '    <div class="lg-row" id="lg-dim-row"><span>背景暗化' +
+            '      <small>背景偏亮时，靠它拉回对比度</small></span>' +
+            '      <input type="range" id="lg-opt-dim" min="0" max="70" step="5" class="lg-range"></div>' +
+
+            '    <div class="lg-row" id="lg-motion-row"><span>背景动效' +
+            '      <small>数据刷新频繁时，关掉可消除闪烁</small></span>' +
+            '      <label class="lg-switch"><input type="checkbox" id="lg-opt-motion"><i></i></label></div>' +
+
+            '    <input type="file" accept="image/*" id="lg-file-input" hidden>' +
+            '    <div class="lg-hint" id="lg-hint"></div>' +
             '  </div>' +
             '</div>';
         document.body.appendChild(m);
@@ -640,10 +684,19 @@
                 closeSettings();
                 return;
             }
+            var gs = e.target.closest && e.target.closest('#lg-glass-seg button');
+            if (gs) { setGlass(gs.getAttribute('data-glass')); return; }
+
             var seg = e.target.closest && e.target.closest('#lg-bg-seg button');
             if (seg) {
-                bg.mode = seg.getAttribute('data-mode');
+                var mode = seg.getAttribute('data-mode');
+                // 选了「图片」但还没选过图 → 直接打开文件选择器。
+                // 否则会出现「分段控件显示图片已选中、实际背景还是极光」的错位状态。
+                if (mode === 'image' && !bg.image) { $('lg-file-input').click(); return; }
+                bg.mode = mode;
                 saveBg(); applyBg(); syncSettingsUI();
+                if (mode === 'url') { var u = $('lg-opt-url'); if (u) u.focus(); }
+                return;
             }
             if (e.target.closest && e.target.closest('[data-act="pick"]')) {
                 $('lg-file-input').click();
@@ -652,7 +705,6 @@
             if (e.target.closest && e.target.closest('[data-act="clearbg"]')) doClearBg();
         });
 
-        $('lg-opt-skin').addEventListener('change', function () { setSkin(this.checked); });
         $('lg-opt-blur').addEventListener('change', function () {
             bg.blur = this.checked; saveBg(); applyBg();
         });
@@ -689,18 +741,40 @@
     function syncSettingsUI() {
         var $ = function (id) { return document.getElementById(id); };
         if (!$('lg-settings')) return;
-        $('lg-opt-skin').checked = isOn();
+
+        // 玻璃档位
+        $$('#lg-glass-seg button').forEach(function (b) {
+            b.classList.toggle('active', b.getAttribute('data-glass') === bg.glass);
+        });
+        var gh = $('lg-glass-hint');
+        if (gh) {
+            gh.textContent = bg.glass === 'liquid'
+                ? '顶栏和侧边栏做真实折射：边缘能看到背景被弯折，中间保持清晰。'
+                : bg.glass === 'frost'
+                    ? '只做背景模糊，不做折射。老设备上更省。'
+                    : '不使用玻璃效果，回到原始外观。';
+        }
+        // 卡片模糊只在玻璃开启时有意义
+        $('lg-row-blur').style.display = bg.glass === 'liquid' ? '' : 'none';
+
         $('lg-opt-blur').checked = bg.blur;
         $('lg-opt-motion').checked = bg.motion;
         $('lg-opt-solid').value = bg.solid;
         $('lg-opt-dim').value = Math.round(bg.dim * 100);
         var u = $('lg-opt-url');
         if (u && !u.value) u.value = bg.url;
+
         $$('#lg-bg-seg button').forEach(function (b) {
             b.classList.toggle('active', b.getAttribute('data-mode') === bg.mode);
         });
-        $('lg-solid-row').style.display = bg.mode === 'solid' ? '' : 'none';
-        $('lg-image-row').style.display = bg.mode === 'image' ? '' : 'none';
+
+        // 只显示当前背景模式相关的项，其余收起来
+        var m = bg.mode;
+        $('lg-solid-row').style.display   = m === 'solid' ? '' : 'none';
+        $('lg-image-row').style.display   = m === 'image' ? '' : 'none';
+        $('lg-url-row').style.display     = m === 'url' ? '' : 'none';
+        $('lg-dim-row').style.display     = (m === 'image' || m === 'url') ? '' : 'none';
+        $('lg-motion-row').style.display  = m === 'aurora' ? '' : 'none';
     }
 
     function $$(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
@@ -821,11 +895,10 @@
         bindSheen();
         watchSidebarMotion();
 
-        var saved = null;
-        try { saved = localStorage.getItem(STORE_KEY); } catch (e) {}
         applyBg();
-        // 未设置过时默认开启（这是特性分支）
-        setSkin(saved === null ? true : saved === '1', false);
+        if (isOn()) enable();
+        updateButton();
+        syncSettingsUI();
         syncAppearanceFromServer();
 
         // 尺寸变化才需要重建贴图（重建内部会比对尺寸，没变直接返回）
