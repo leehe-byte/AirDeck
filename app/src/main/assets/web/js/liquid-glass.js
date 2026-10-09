@@ -244,14 +244,20 @@
         img.setAttribute('width', mw); img.setAttribute('height', mh);
         img.setAttribute('preserveAspectRatio', 'none');
         img.setAttribute('href', map.href);
+        img.setAttribute('result', 'map');
         var disp = document.createElementNS(NS, 'feDisplacementMap');
         disp.setAttribute('in', 'SourceGraphic');
-        disp.setAttribute('in2', img);
+        // 必须用 result 名字符串引用。
+        // 不能写 setAttribute('in2', img) —— 那会把元素字符串化成
+        // "[object SVGFEImageElement]"，匹配不到任何 result，位移贴图等于没接上，
+        // 而因为折射层显示的就是同一张背景，肉眼根本看不出它是空的。
+        disp.setAttribute('in2', 'map');
         disp.setAttribute('xChannelSelector', 'R');
         disp.setAttribute('yChannelSelector', 'G');
         disp.setAttribute('scale', map.scale.toFixed(3));
         s.filter.appendChild(img);
         s.filter.appendChild(disp);
+        s._scale = map.scale;
     }
 
     /** 每帧：把玻璃内部的极光副本和真实视口对齐（位置变化时必须更新） */
@@ -265,37 +271,71 @@
 
     /* ------------------------------------------------------------------ *
      *  3. 指针跟随高光
+     *
+     *  不只点亮指针正下方那张卡：指针落在卡片之间的缝隙里时，
+     *  两侧的卡片都会亮起来，光看起来是"跨过去"的，而不是被卡片边界切断。
+     *
+     *  只在有精确指针的设备上启用 —— 触屏上的 pointermove 会在拖动时乱触发，
+     *  给一堆卡片插上 .lg-spec，既没用又加重合成负担。
      * ------------------------------------------------------------------ */
+    var SHEEN_RADIUS = 220;      // 触发半径（px）
+
+    function ensureSpec(card) {
+        if (card.querySelector(':scope > .lg-spec')) return;
+        var sp = document.createElement('div');
+        sp.className = 'lg-spec';
+        card.insertBefore(sp, card.firstChild);
+    }
+
+    function clearSheen() {
+        var on = document.querySelectorAll('.lg-sheen');
+        for (var i = 0; i < on.length; i++) on[i].classList.remove('lg-sheen');
+    }
+
     function bindSheen() {
-        var cur = null;
-        document.addEventListener('pointermove', function (e) {
-            var t = e.target && e.target.closest
-                ? e.target.closest('.card, .modal-container, .sms-thread-card')
-                : null;
-            if (t !== cur) {
-                if (cur) cur.classList.remove('lg-sheen');
-                cur = t;
-                if (cur) {
-                    cur.classList.add('lg-sheen');
-                    if (!cur.querySelector(':scope > .lg-spec')) {
-                        var sp = document.createElement('div');
-                        // 不要在这里加 .on —— 可见性由父级的 .lg-sheen 控制，
-                        // 否则指针移开后光斑会永久留在卡片上
-                        sp.className = 'lg-spec';
-                        cur.insertBefore(sp, cur.firstChild);
-                    }
+        if (!window.matchMedia ||
+            !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+        var pending = null, rafId2 = null;
+
+        function apply() {
+            rafId2 = null;
+            var e = pending; pending = null;
+            if (!e || !isOn()) return;
+
+            var px = e.clientX, py = e.clientY;
+            var cards = document.querySelectorAll('.card, .modal-container, .sms-thread-card');
+
+            // 先把所有几何读完（读阶段），再统一写样式（写阶段），
+            // 避免读写交错反复触发同步布局
+            var geo = [];
+            for (var i = 0; i < cards.length; i++) {
+                var c = cards[i], r = c.getBoundingClientRect();
+                var dx = Math.max(r.left - px, 0, px - r.right);
+                var dy = Math.max(r.top - py, 0, py - r.bottom);
+                geo.push([c, r, Math.sqrt(dx * dx + dy * dy)]);
+            }
+            for (var j = 0; j < geo.length; j++) {
+                var el = geo[j][0], rr = geo[j][1], dist = geo[j][2];
+                if (dist <= SHEEN_RADIUS) {
+                    ensureSpec(el);
+                    // 百分比允许超出 0~100%：指针在卡片外时，光心落在卡片之外，
+                    // 卡片上只露出一部分渐变，视觉上就是光"跨"过来了
+                    el.style.setProperty('--lg-mx', ((px - rr.left) / rr.width * 100).toFixed(1) + '%');
+                    el.style.setProperty('--lg-my', ((py - rr.top) / rr.height * 100).toFixed(1) + '%');
+                    el.classList.add('lg-sheen');
+                } else if (el.classList.contains('lg-sheen')) {
+                    el.classList.remove('lg-sheen');
                 }
             }
-            if (!cur) return;
-            var r = cur.getBoundingClientRect();
-            cur.style.setProperty('--lg-mx', ((e.clientX - r.left) / r.width * 100) + '%');
-            cur.style.setProperty('--lg-my', ((e.clientY - r.top) / r.height * 100) + '%');
+        }
+
+        document.addEventListener('pointermove', function (e) {
+            pending = e;
+            if (rafId2 === null) rafId2 = requestAnimationFrame(apply);
         }, { passive: true });
 
-        document.addEventListener('pointerleave', function () {
-            if (cur) cur.classList.remove('lg-sheen');
-            cur = null;
-        }, { passive: true });
+        document.addEventListener('pointerleave', clearSheen, { passive: true });
     }
 
     /* ------------------------------------------------------------------ *
@@ -342,13 +382,20 @@
      *  3c. 背景设置（极光 / 纯色 / 自定义图片）
      * ------------------------------------------------------------------ */
     var BG_KEY = 'lg-bg';
-    var bg = { mode: 'aurora', solid: '#0b1020', image: '', blur: true, dim: 0.25, motion: true };
+    var bg = { mode: 'aurora', solid: '#0b1020', image: '', url: '', blur: true, dim: 0.25, motion: true };
     var IMAGE_MAX_EDGE = 1600;
     var IMAGE_SOFT_LIMIT = 3.6 * 1024 * 1024;   // localStorage 一般 5MB，留点余量
 
     function loadBg() {
+        var raw = null;
+        try { raw = localStorage.getItem(BG_KEY); } catch (e) {}
+
+        // 首次运行且是小屏：默认关掉卡片的毛玻璃。
+        // backdrop-filter 在 DOM 刷新时要重新采样背景，是手机上闪烁/掉帧的主要来源；
+        // 顶栏和侧边栏用的是 SVG 折射滤镜，不受影响，招牌的折射效果还在。
+        if (raw === null && window.innerWidth <= 768) bg.blur = false;
+
         try {
-            var raw = localStorage.getItem(BG_KEY);
             if (raw) {
                 var o = JSON.parse(raw);
                 if (o && typeof o === 'object') {
@@ -358,6 +405,7 @@
                     if (typeof o.blur === 'boolean') bg.blur = o.blur;
                     if (typeof o.dim === 'number') bg.dim = Math.min(0.8, Math.max(0, o.dim));
                     if (typeof o.motion === 'boolean') bg.motion = o.motion;
+                    if (typeof o.url === 'string') bg.url = o.url;
                 }
             }
         } catch (e) {}
@@ -479,6 +527,11 @@
         if (base) base.innerHTML = '';
         blobGroups = [];
         document.querySelectorAll('.lg-aurora-copy').forEach(function (n) { n.remove(); });
+
+        // 关闭后不能留残留：这时 .card 没有 position:relative，
+        // 残留的 .lg-spec 会以别的祖先为定位基准，跑到奇怪的地方去
+        clearSheen();
+        document.querySelectorAll('.lg-spec').forEach(function (n) { n.remove(); });
     }
 
     function setSkin(on, persist) {
@@ -496,10 +549,24 @@
         syncSettingsUI();
     }
 
+    /* 内联 SVG：不依赖设备字体。
+       之前关闭时把文字换成 🫧(U+1FAE7)，那是 Emoji 14 才有的字形，
+       老设备上直接渲染成豆腐块。 */
+    var ICON =
+        '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" ' +
+        'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M12 2.6 20 7v10l-8 4.4L4 17V7z"/>' +
+        '<path d="M12 2.6V12m0 0 8-5m-8 5-8-5m8 5v9.4"/></svg>';
+
     function updateButton() {
         var b = document.getElementById('lg-skin-btn');
         if (!b) return;
-        b.textContent = isOn() ? '🧊' : '🫧';
+        if (b.getAttribute('data-icon') !== '1') {
+            b.innerHTML = ICON;
+            b.setAttribute('data-icon', '1');
+        }
+        // 开关状态用透明度表示，不再换字形
+        b.classList.toggle('lg-off', !isOn());
         b.title = '外观设置';
     }
 
@@ -658,7 +725,7 @@
             fab.id = 'lg-skin-fab';
             fab.type = 'button';
             fab.title = '外观设置';
-            fab.textContent = '🧊';
+            fab.innerHTML = ICON;
             fab.addEventListener('click', openSettings);
             document.body.appendChild(fab);
         }

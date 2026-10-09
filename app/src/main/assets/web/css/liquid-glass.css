@@ -175,20 +175,23 @@
 }
 
 /* 跟随指针的镜面高光。
-   注意可见性绑在**卡片的 .lg-sheen 类**上，不是元素自己的 .on ——
-   之前把 on 写在元素上，指针移开后类没被移除，光斑就永久留在卡片上了。 */
-.lg-spec {
+   两个要点：
+   1. 可见性绑在**卡片的 .lg-sheen 类**上，不是元素自己的 .on ——
+      之前把 on 写在元素上，指针移开后类没被移除，光斑就永久留在卡片上。
+   2. 整条规则挂在 [data-skin="glass"] 下 —— 皮肤关闭时不应该有任何残留效果。
+   另外刻意不用 mix-blend-mode: screen：mix-blend-mode 会把父级拖进混合组，
+   叠加 backdrop-filter 后在内容刷新时很容易闪，纯 alpha 的观感差别很小。 */
+[data-skin="glass"] .lg-spec {
     position: absolute;
     inset: 0;
     pointer-events: none;
     z-index: 2;
     opacity: 0;
-    transition: opacity .35s ease;
-    background: radial-gradient(220px circle at var(--lg-mx, 30%) var(--lg-my, 0%),
-        rgba(255, 255, 255, .28), rgba(255, 255, 255, .06) 45%, transparent 70%);
-    mix-blend-mode: screen;
+    transition: opacity .3s ease;
+    background: radial-gradient(200px circle at var(--lg-mx, 50%) var(--lg-my, 50%),
+        rgba(255, 255, 255, .26), rgba(255, 255, 255, .05) 48%, transparent 72%);
 }
-.lg-sheen > .lg-spec { opacity: 1; }
+[data-skin="glass"] .lg-sheen > .lg-spec { opacity: 1; }
 
 /* ------------------------------------------------------------ 顶栏 */
 [data-skin="glass"] #header {
@@ -293,14 +296,15 @@
     transform: translateX(2px);
 }
 
-/* 选中项做成一块小玻璃 */
+/* 选中项做成一块小玻璃。
+   这里不要再叠 backdrop-filter：它嵌在被 SVG 滤镜处理过的侧边栏里，
+   嵌套的背景采样是 Android WebView 上闪烁的常见来源。纯渐变已经够看了。 */
 [data-skin="glass"] .nav-item.active {
     background: linear-gradient(140deg, rgba(99, 102, 241, .55), rgba(6, 182, 212, .40));
     color: #fff;
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, .45),
         0 8px 20px -10px rgba(99, 102, 241, .95);
-    backdrop-filter: blur(8px);
     font-weight: 600;
 }
 
@@ -488,17 +492,27 @@
 }
 
 /* ------------------------------------------------ 皮肤切换按钮 */
+/* 用内联 SVG 而不是 emoji。
+   emoji 依赖设备字体 —— 🫧(U+1FAE7) 是 Emoji 14 才加的，
+   老设备字体里没有就渲染成豆腐块。SVG 不依赖任何字体。 */
 #lg-skin-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
     border: none;
+    border-radius: 99px;
     background: transparent;
     color: var(--text-main);
-    padding: 4px 8px;
-    border-radius: 99px;
-    font-size: 16px;
     cursor: pointer;
     margin-right: 4px;
-    line-height: 1;
+    transition: background .2s, opacity .25s;
 }
+#lg-skin-btn svg { display: block; }
+#lg-skin-btn:hover { background: rgba(127, 127, 127, .18); }
+#lg-skin-btn.lg-off { opacity: .42; }
 [data-skin="glass"] #lg-skin-btn { color: var(--lg-text); }
 
 /* ------------------------------------------------ 降级 */
@@ -526,6 +540,12 @@
 @media (max-width: 768px) {
     [data-skin="glass"] { --lg-blur: 12px; }
 }
+
+/* 手机上默认不启用卡片的毛玻璃（见 JS 里的首次运行判定）。
+   注意顶栏 / 侧边栏用的是 SVG 折射滤镜，不是 backdrop-filter，不受影响 ——
+   招牌的那个折射效果在手机上照样有。 */
+[data-lg-blur="off"] .card,
+[data-lg-blur="off"] .sms-thread-card { background: rgba(16, 20, 38, .72); }
 
 /* ------------------------------ 关掉毛玻璃模糊（性能兜底）
    backdrop-filter 在部分老 WebView / 低端 GPU 上会掉帧甚至渲染空白。
@@ -562,10 +582,13 @@
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     color: #fff;
-    font-size: 20px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .8);
 }
+#lg-skin-fab svg { display: block; }
 
 .lg-modal {
     position: fixed;
