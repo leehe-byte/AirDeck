@@ -145,7 +145,11 @@
     position: absolute;
     inset: -48px;
     pointer-events: none;
-    z-index: 0;
+    /* z-index 必须为负：玻璃层是定位元素，内容多为静态定位。
+       按 CSS 绘制顺序，z-index>=0 的定位元素会画在静态内容之上 ——
+       底色层会直接盖住卡片正文。负值只画在父级背景之上、内容之下，才是对的。
+       前提是父元素建立了层叠上下文（见 .card / #sidebar 的 isolation）。 */
+    z-index: -5;
 }
 
 .lg-aurora-copy {
@@ -154,12 +158,28 @@
     /* left/top 由 JS 按元素在视口里的位置写入，使副本与真实视口对齐 */
 }
 
+/* 顶栏是 position:fixed + z-index，本来就是层叠上下文；
+   侧边栏不一定（桌面布局下要靠这个）。 */
+[data-skin="glass"] #sidebar { isolation: isolate; }
+
 .lg-tint {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 1;
+    z-index: -3;
     background: var(--lg-tint);
+}
+
+/* 轻模糊层，压在折射层之上。
+   折射负责边缘的弯折，这一层负责让正文能读 —— 背景有照片/高饱和图案时，
+   只靠一层半透明底色是压不住白字的。
+   注意它必须排在 .lg-refract 之后：backdrop-filter 采样的是「已绘制在它下面的内容」，
+   这样模糊的就是折射后的结果，而不是原始背景。 */
+.lg-frost {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: -4;
 }
 
 /* 边缘 rim light：用 mask-composite 抠出一圈 1px 的描边 */
@@ -169,7 +189,7 @@
     padding: 1px;
     border-radius: inherit;
     pointer-events: none;
-    z-index: 3;
+    z-index: -1;
     background: linear-gradient(150deg,
         var(--lg-rim-1), var(--lg-rim-2) 32%,
         var(--lg-rim-2) 58%, rgba(255, 255, 255, .55));
@@ -189,7 +209,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 2;
+    z-index: -2;
     opacity: 0;
     transition: opacity .3s ease;
     background: radial-gradient(200px circle at var(--lg-mx, 50%) var(--lg-my, 50%),
@@ -277,7 +297,7 @@
    而 [data-skin] #sidebar 的特异性(0,1,1) 高于 #sidebar(0,1,0)，
    无条件写 relative 会把移动端的浮层侧边栏顶掉，内容被挤出去。 */
 @media (min-width: 769px) {
-    [data-skin="glass"] #sidebar { position: relative; }
+    [data-skin="glass"] #sidebar { position: relative; isolation: isolate; }
 }
 
 [data-skin="glass"][data-lg-glass="liquid"] #sidebar .lg-tint { background: rgba(6, 10, 24, .28); }
@@ -329,6 +349,10 @@
 [data-skin="glass"] .card,
 [data-skin="glass"] .sms-thread-card {
     position: relative;
+    /* 建立层叠上下文：玻璃层用负 z-index，必须有这个才不会跑到父级背景后面去。
+       同时它也让 .lg-frost 的 backdrop-filter 只采样卡片内部（即折射后的结果），
+       而不是整页背景。 */
+    isolation: isolate;
     background: var(--lg-tint-strong);
     border: 1px solid rgba(255, 255, 255, .12);
     border-radius: var(--lg-radius);
@@ -344,6 +368,32 @@
     transform: translateY(-2px);
     border-color: rgba(255, 255, 255, .22);
     box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .85), inset 0 1px 0 rgba(255, 255, 255, .28);
+}
+
+/* ---- 液态档 + 卡片折射开启时 ----
+   卡片改走 SVG 折射，把 backdrop-filter 去掉：模糊会把折射的细节一起糊掉，
+   两者叠加既贵又互相抵消。
+   卡片的底色改由 .lg-tint 提供（它在折射层之上），
+   透明度要够高才能在照片背景上保证正文可读。 */
+[data-skin="glass"][data-lg-glass="liquid"][data-lg-cardlens="on"] .card,
+[data-skin="glass"][data-lg-glass="liquid"][data-lg-cardlens="on"] .sms-thread-card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    /* 卡片自身的底色在折射层之下，看不到；这里清掉省一次绘制。
+       .lg-refract 显示的始终是完整的背景副本，不会漏。 */
+    background: transparent;
+}
+[data-skin="glass"][data-lg-glass="liquid"][data-lg-cardlens="on"] .card > .lg-tint,
+[data-skin="glass"][data-lg-glass="liquid"][data-lg-cardlens="on"] .sms-thread-card > .lg-tint {
+    background: rgba(10, 14, 32, .30);
+}
+
+/* 液态档 + 模糊开启：给玻璃面压一层轻模糊，让正文在花哨背景上也能读。
+   半径刻意比毛玻璃档小很多（5px vs 18px）—— 太大会把边缘的折射一起糊掉，
+   那就退化成普通毛玻璃了。 */
+[data-skin="glass"][data-lg-glass="liquid"][data-lg-blur="on"] .lg-frost {
+    backdrop-filter: blur(5px) saturate(150%);
+    -webkit-backdrop-filter: blur(5px) saturate(150%);
 }
 
 [data-skin="glass"] .card-header {

@@ -164,22 +164,87 @@
      * ------------------------------------------------------------------ */
     /* bezel 是折射带宽度，refraction 是强度（都按 px 走，不再乘一次设备像素比）。
        顶栏只有 60px 高，折射带要窄；侧边栏宽，可以用大一点。 */
-    var SURFACES = [
+    /* 顶栏 / 侧边栏：位置固定，启动时建一次 */
+    var CHROME_SURFACES = [
         // depth=0 是关键：中间完全不畸变，只有贴边那一圈在弯 ——
         // 就是 demo 里那种「边缘看得出扭曲、中间背景看得清」的观感。
-        // 之前给顶栏/侧边栏加了 depthEffect，中间也在弯，反而糊。
-        // refraction 调大让边缘的弯折在照片类背景上明确可见。
         { sel: '#header', bezel: 18, refraction: 1.70, radius: 0, depth: 0 },
         { sel: '#sidebar', bezel: 30, refraction: 1.45, radius: 0, depth: 0 }
     ];
 
-    var surfaces = [];
+    /* 内容卡片。 #content 没有背景色，卡片背后就是那层背景，
+       和顶栏/侧边栏是同一种情况，所以同样能做真折射。
+       比顶栏小一号，参数收敛一点。圆角从计算样式读，跟 CSS 保持一致。 */
+    var CARD_CFG = {
+        bezel: 18, refraction: 1.15, depth: 0,
+        radius: 0, radiusFromStyle: true
+    };
 
-    function createSurface(cfg, index) {
-        var el = document.querySelector(cfg.sel);
-        if (!el) return null;
+    var surfaces = [];        // 顶栏 + 侧边栏
+    var cardSurfaces = [];    // 内容卡片（随页面内容动态增删）
 
-        el.querySelectorAll(':scope > .lg-refract, :scope > .lg-tint, :scope > .lg-spec, :scope > .lg-rim')
+    /* 位移贴图只跟元素的尺寸 / 圆角 / 参数有关，与位置无关。
+       同一行卡片尺寸相同，所以按尺寸缓存后几张卡能共用一张贴图和一条滤镜 ——
+       否则 6 张卡就是 6 张贴图、约 136 万像素，手机上启动会明显卡。 */
+    var filterCache = {};
+    var filterSeq = 0;
+
+    function getGlassFilter(gw, gh, radius, bezel, refraction, depth) {
+        var key = [gw, gh, radius, bezel, refraction, depth].join('|');
+        if (filterCache[key]) return filterCache[key];
+
+        var mw = gw + MARGIN * 2;
+        var mh = gh + MARGIN * 2;
+        var map = buildDisplacementMap(mw, mh, gw, gh, radius, bezel, refraction, depth);
+
+        var id = 'lg-f' + (++filterSeq);
+        var filter = document.createElementNS(NS, 'filter');
+        filter.setAttribute('id', id);
+        filter.setAttribute('filterUnits', 'userSpaceOnUse');
+        filter.setAttribute('color-interpolation-filters', 'sRGB');
+        filter.setAttribute('x', 0); filter.setAttribute('y', 0);
+        filter.setAttribute('width', mw); filter.setAttribute('height', mh);
+
+        var img = document.createElementNS(NS, 'feImage');
+        img.setAttribute('x', 0); img.setAttribute('y', 0);
+        img.setAttribute('width', mw); img.setAttribute('height', mh);
+        img.setAttribute('preserveAspectRatio', 'none');
+        img.setAttribute('href', map.href);
+        img.setAttribute('result', 'map');
+
+        var disp = document.createElementNS(NS, 'feDisplacementMap');
+        disp.setAttribute('in', 'SourceGraphic');
+        // 必须用 result 名字符串引用。
+        // 不能写 setAttribute('in2', img) —— 那会把元素字符串化成
+        // "[object SVGFEImageElement]"，匹配不到任何 result，位移贴图等于没接上，
+        // 而因为折射层显示的就是同一张背景，肉眼根本看不出它是空的。
+        disp.setAttribute('in2', 'map');
+        disp.setAttribute('xChannelSelector', 'R');
+        disp.setAttribute('yChannelSelector', 'G');
+        disp.setAttribute('scale', map.scale.toFixed(3));
+
+        filter.appendChild(img);
+        filter.appendChild(disp);
+        document.getElementById('lg-defs').appendChild(filter);
+
+        var rec = { id: id, filter: filter, gw: gw, gh: gh };
+        filterCache[key] = rec;
+        return rec;
+    }
+
+    function clearFilterCache() {
+        for (var k in filterCache) {
+            if (!filterCache.hasOwnProperty(k)) continue;
+            var f = filterCache[k].filter;
+            if (f.parentNode) f.parentNode.removeChild(f);
+        }
+        filterCache = {};
+        filterSeq = 0;
+    }
+
+    /** 给元素装上玻璃层：折射 + 底色 + 边缘高光 + 指针高光 */
+    function buildGlassLayers(el, cfg) {
+        el.querySelectorAll(':scope > .lg-refract, :scope > .lg-frost, :scope > .lg-tint, :scope > .lg-spec, :scope > .lg-rim')
             .forEach(function (n) { n.remove(); });
 
         var layer = document.createElement('div');
@@ -191,88 +256,120 @@
 
         var tint = document.createElement('div');
         tint.className = 'lg-tint';
+        var frost = document.createElement('div');
+        frost.className = 'lg-frost';
         var spec = document.createElement('div');
         spec.className = 'lg-spec';
         var rim = document.createElement('div');
         rim.className = 'lg-rim';
 
-        // 插到最前面，保证内容盖在玻璃之上
+        // 插到最前面，保证内容盖在玻璃之上。
+        // 插入顺序决定绘制顺序：refract → frost → tint → spec → rim
         el.insertBefore(rim, el.firstChild);
         el.insertBefore(spec, el.firstChild);
         el.insertBefore(tint, el.firstChild);
+        el.insertBefore(frost, el.firstChild);
         el.insertBefore(layer, el.firstChild);
 
-        var filter = document.createElementNS(NS, 'filter');
-        filter.setAttribute('id', 'lg-f' + index);
-        filter.setAttribute('filterUnits', 'userSpaceOnUse');
-        filter.setAttribute('color-interpolation-filters', 'sRGB');
-        document.getElementById('lg-defs').appendChild(filter);
+        var group = { nodes: createBlobSet(copy) };
+        blobGroups.push(group);
 
-        // 关键：--fid 只放 url(#id) 本体，filter 属性直接引用，不要再套一层 url()
-        layer.style.filter = 'url(#lg-f' + index + ')';
-        layer.style.webkitFilter = 'url(#lg-f' + index + ')';
-
-        var s = {
-            cfg: cfg, el: el, layer: layer, copy: copy, filter: filter,
-            feImage: null, blobNodes: createBlobSet(copy)
-        };
-        blobGroups.push({ nodes: s.blobNodes });
-        // 毛玻璃档不显示折射层，就不用白建位移贴图（两张图加起来约 50 万像素，
-        // 手机上是一次能感觉到的启动开销）。切到液态时再补建。
-        if (bg.glass === 'liquid') rebuildSurface(s);
+        var s = { cfg: cfg, el: el, layer: layer, copy: copy, group: group, filterId: null };
+        applySurfaceFilter(s);
         return s;
     }
 
-    /** 元素尺寸变了才需要重建贴图（这一步不便宜，只在 resize 时做） */
-    function rebuildSurface(s, force) {
-        var rect = s.el.getBoundingClientRect();
-        var gw = Math.max(4, Math.round(rect.width));
-        var gh = Math.max(4, Math.round(rect.height));
-        if (!force && gw === s._gw && gh === s._gh) return;
-        s._gw = gw; s._gh = gh;
-
-        var mw = gw + MARGIN * 2;
-        var mh = gh + MARGIN * 2;
-
-        var box = [['x', 0], ['y', 0], ['width', mw], ['height', mh]];
-        for (var i = 0; i < box.length; i++) {
-            s.filter.setAttribute(box[i][0], box[i][1]);
-        }
-
-        var map = buildDisplacementMap(
-            mw, mh, gw, gh, s.cfg.radius,
-            Math.max(1, s.cfg.bezel), s.cfg.refraction, s.cfg.depth
-        );
-
-        while (s.filter.firstChild) s.filter.removeChild(s.filter.firstChild);
-        var img = document.createElementNS(NS, 'feImage');
-        img.setAttribute('x', 0); img.setAttribute('y', 0);
-        img.setAttribute('width', mw); img.setAttribute('height', mh);
-        img.setAttribute('preserveAspectRatio', 'none');
-        img.setAttribute('href', map.href);
-        img.setAttribute('result', 'map');
-        var disp = document.createElementNS(NS, 'feDisplacementMap');
-        disp.setAttribute('in', 'SourceGraphic');
-        // 必须用 result 名字符串引用。
-        // 不能写 setAttribute('in2', img) —— 那会把元素字符串化成
-        // "[object SVGFEImageElement]"，匹配不到任何 result，位移贴图等于没接上，
-        // 而因为折射层显示的就是同一张背景，肉眼根本看不出它是空的。
-        disp.setAttribute('in2', 'map');
-        disp.setAttribute('xChannelSelector', 'R');
-        disp.setAttribute('yChannelSelector', 'G');
-        disp.setAttribute('scale', map.scale.toFixed(3));
-        s.filter.appendChild(img);
-        s.filter.appendChild(disp);
-        s._scale = map.scale;
+    /** 按元素实际尺寸取（或建）滤镜并挂上 */
+    function applySurfaceFilter(s) {
+        if (bg.glass !== 'liquid') return;
+        var r = s.el.getBoundingClientRect();
+        var gw = Math.max(4, Math.round(r.width));
+        var gh = Math.max(4, Math.round(r.height));
+        if (gw <= 4 || gh <= 4) return;                      // 还没布局
+        var radius = s.cfg.radiusFromStyle
+            ? Math.round(parseFloat(getComputedStyle(s.el).borderTopLeftRadius) || 0)
+            : (s.cfg.radius || 0);
+        var rec = getGlassFilter(gw, gh, radius, s.cfg.bezel, s.cfg.refraction, s.cfg.depth);
+        if (s.filterId === rec.id) return;
+        s.filterId = rec.id;
+        // 关键：直接引用 url(#id)，不要再套一层 url() —— 那会变成 url(url(#id))，
+        // CSS 判定非法，filter 静默算成 none。
+        s.layer.style.filter = 'url(#' + rec.id + ')';
+        s.layer.style.webkitFilter = 'url(#' + rec.id + ')';
     }
 
-    /** 每帧：把玻璃内部的极光副本和真实视口对齐（位置变化时必须更新） */
+    function setSurfaceFilterOff(s) {
+        if (!s.filterId) return;
+        s.filterId = null;
+        s.layer.style.filter = 'none';
+        s.layer.style.webkitFilter = 'none';
+    }
+
+    function destroySurface(s) {
+        if (s.layer && s.layer.parentNode) s.layer.parentNode.removeChild(s.layer);
+        if (s.el) {
+            ['lg-frost', 'lg-tint', 'lg-spec', 'lg-rim'].forEach(function (c) {
+                var n = s.el.querySelector(':scope > .' + c);
+                if (n) n.remove();
+            });
+        }
+        if (s.group) {
+            var gi = blobGroups.indexOf(s.group);
+            if (gi >= 0) blobGroups.splice(gi, 1);
+        }
+    }
+
+    /* ---- 内容卡片：随页面内容动态增删 ----
+       main.js 的 loadPage 用 contentArea.innerHTML = html 整块替换内容，
+       所以卡片引用会整体失效，必须重新收集。 */
+    function refreshCardSurfaces() {
+        var host = document.querySelector('#content');
+        if (!host) return;
+
+        var live = Array.prototype.slice.call(host.querySelectorAll('.card, .sms-thread-card'));
+
+        // 先摘掉已经不在文档里的
+        cardSurfaces = cardSurfaces.filter(function (s) {
+            if (live.indexOf(s.el) >= 0) return true;
+            destroySurface(s);
+            return false;
+        });
+
+        if (bg.glass !== 'liquid' || bg.cardLens === false) {
+            cardSurfaces.forEach(destroySurface);
+            cardSurfaces = [];
+            return;
+        }
+
+        var has = [];
+        cardSurfaces.forEach(function (s) { has.push(s.el); });
+        for (var i = 0; i < live.length; i++) {
+            if (has.indexOf(live[i]) >= 0) continue;
+            cardSurfaces.push(buildGlassLayers(live[i], CARD_CFG));
+        }
+    }
+
+    /** 每帧：把玻璃内部的背景副本和真实视口对齐（位置变化时必须更新） */
     function syncSurface(s) {
         var r = s.layer.getBoundingClientRect();
         s.copy.style.left = (-Math.round(r.left)) + 'px';
         s.copy.style.top = (-Math.round(r.top)) + 'px';
         s.copy.style.width = window.innerWidth + 'px';
         s.copy.style.height = window.innerHeight + 'px';
+    }
+
+    /* 滚动时卡片在动：既要重新对位，也要把视口外的卡片滤镜摘掉。
+       摘掉之后 .lg-refract 显示的仍是与背景对齐的副本，视觉上等于没有这一层，
+       所以看不出来 —— 但省下了合成开销。 */
+    function syncCards() {
+        var vh = window.innerHeight;
+        for (var i = 0; i < cardSurfaces.length; i++) {
+            var s = cardSurfaces[i];
+            var r = s.layer.getBoundingClientRect();
+            if (r.bottom > -200 && r.top < vh + 200) applySurfaceFilter(s);
+            else setSurfaceFilterOff(s);
+            syncSurface(s);
+        }
     }
 
     /* ------------------------------------------------------------------ *
@@ -345,6 +442,33 @@
     }
 
     /* ------------------------------------------------------------------ *
+     *  3d. 内容卡片的生命周期
+     *
+     *  loadPage 用 contentArea.innerHTML = html 整块替换内容，
+     *  卡片引用会整体失效，所以要重新收集。
+     * ------------------------------------------------------------------ */
+    function bindContentHost() {
+        var host = document.querySelector('#content');
+        if (!host) return;
+
+        // 滚动时卡片在动：重新对位 + 视口外摘掉滤镜
+        var pend = false;
+        host.addEventListener('scroll', function () {
+            if (pend) return;
+            pend = true;
+            requestAnimationFrame(function () { pend = false; syncCards(); });
+        }, { passive: true });
+
+        // 只看直接子节点：loadPage 换的是 #content 的直接内容。
+        // 不用 subtree —— 页面每 2 秒轮询更新文本，subtree 会被高频触发。
+        var t = null;
+        new MutationObserver(function () {
+            clearTimeout(t);
+            t = setTimeout(function () { refreshCardSurfaces(); syncCards(); }, 60);
+        }).observe(host, { childList: true });
+    }
+
+    /* ------------------------------------------------------------------ *
      *  3b. 侧边栏滑动 —— 动画期间把折射层摘掉
      *
      *  #sidebar 里挂着一个 335×700+ 的 SVG 位移滤镜。
@@ -393,6 +517,7 @@
         url: '', urlStamp: 0,          // 服务端缓存的背景图：源地址 + 落盘时间（做缓存失效）
         glass: 'liquid',               // 玻璃档位：'liquid' 液态折射 / 'frost' 毛玻璃 / 'off' 关闭
         blur: true, dim: 0.25, motion: true,
+        cardLens: true,                // 内容卡片是否也做折射（关掉可省性能）
         saved: false                   // 本机是否手动设置过；没设置过时跟随服务端
     };
     var IMAGE_MAX_EDGE = 1600;
@@ -426,6 +551,7 @@
                     if (typeof o.blur === 'boolean') bg.blur = o.blur;
                     if (typeof o.dim === 'number') bg.dim = Math.min(0.8, Math.max(0, o.dim));
                     if (typeof o.motion === 'boolean') bg.motion = o.motion;
+                    if (typeof o.cardLens === 'boolean') bg.cardLens = o.cardLens;
                     if (typeof o.url === 'string') bg.url = o.url;
                     if (typeof o.urlStamp === 'number') bg.urlStamp = o.urlStamp;
                 }
@@ -464,6 +590,7 @@
             root.setAttribute('data-lg-bg', 'aurora');
         }
         root.setAttribute('data-lg-blur', bg.blur ? 'on' : 'off');
+        root.setAttribute('data-lg-cardlens', bg.cardLens === false ? 'off' : 'on');
         // 一层半透明黑，纯合成；不用 filter: brightness()（全屏滤镜，代价高）
         root.style.setProperty('--lg-dim-op', bg.dim.toFixed(3));
         if (isOn()) startMotion(); else stopMotion();
@@ -525,6 +652,7 @@
 
     function syncAll() {
         for (var i = 0; i < surfaces.length; i++) syncSurface(surfaces[i]);
+        for (var j = 0; j < cardSurfaces.length; j++) syncSurface(cardSurfaces[j]);
     }
 
     function isOn() {
@@ -537,10 +665,11 @@
         var base = document.getElementById('lg-aurora');
         blobGroups = [{ nodes: createBlobSet(base) }];
         surfaces = [];
-        for (var i = 0; i < SURFACES.length; i++) {
-            var s = createSurface(SURFACES[i], i);
-            if (s) surfaces.push(s);
+        for (var i = 0; i < CHROME_SURFACES.length; i++) {
+            var el = document.querySelector(CHROME_SURFACES[i].sel);
+            if (el) surfaces.push(buildGlassLayers(el, CHROME_SURFACES[i]));
         }
+        refreshCardSurfaces();
         syncAll();
         startMotion();
     }
@@ -549,16 +678,11 @@
         if (!active) return;
         active = false;
         stopMotion();
-        for (var i = 0; i < surfaces.length; i++) {
-            var s = surfaces[i];
-            if (s.layer.parentNode) s.layer.parentNode.removeChild(s.layer);
-            if (s.filter.parentNode) s.filter.parentNode.removeChild(s.filter);
-            ['lg-tint', 'lg-spec', 'lg-rim'].forEach(function (c) {
-                var n = s.el.querySelector(':scope > .' + c);
-                if (n) n.remove();
-            });
-        }
+        cardSurfaces.forEach(destroySurface);
+        cardSurfaces = [];
+        surfaces.forEach(destroySurface);
         surfaces = [];
+        clearFilterCache();
         var base = document.getElementById('lg-aurora');
         if (base) base.innerHTML = '';
         blobGroups = [];
@@ -579,9 +703,10 @@
         applyBg();                                   // 先定属性，再建/拆玻璃层
         if (isOn() && !wasOn) enable();
         if (!isOn() && wasOn) disable();
-        // 切到液态时补建位移贴图（毛玻璃档下是跳过的）
+        // 切到液态时补建滤镜，并给内容卡片装上玻璃层
         if (bg.glass === 'liquid') {
-            for (var i = 0; i < surfaces.length; i++) rebuildSurface(surfaces[i], true);
+            surfaces.forEach(function (s) { s.filterId = null; applySurfaceFilter(s); });
+            refreshCardSurfaces();
             syncAll();
         }
         updateButton();
@@ -633,6 +758,9 @@
             '    <div class="lg-row" id="lg-row-blur"><span>卡片毛玻璃模糊' +
             '      <small>关掉可明显提升老设备流畅度</small></span>' +
             '      <label class="lg-switch"><input type="checkbox" id="lg-opt-blur"><i></i></label></div>' +
+            '    <div class="lg-row" id="lg-row-cardlens"><span>内容卡片折射' +
+            '      <small>卡片也做边缘折射，更接近 demo；关了更省性能</small></span>' +
+            '      <label class="lg-switch"><input type="checkbox" id="lg-opt-cardlens"><i></i></label></div>' +
 
             '    <div class="lg-sub">背景</div>' +
             '    <div class="lg-seg" id="lg-bg-seg">' +
@@ -708,6 +836,12 @@
         $('lg-opt-blur').addEventListener('change', function () {
             bg.blur = this.checked; saveBg(); applyBg();
         });
+        $('lg-opt-cardlens').addEventListener('change', function () {
+            bg.cardLens = this.checked; saveBg();
+            applyBg();                 // 更新 data-lg-cardlens，CSS 分支靠它切换
+            refreshCardSurfaces();
+            syncCards();
+        });
         $('lg-opt-solid').addEventListener('input', function () {
             bg.solid = this.value; bg.mode = 'solid'; saveBg(); applyBg(); syncSettingsUI();
         });
@@ -754,8 +888,10 @@
                     ? '只做背景模糊，不做折射。老设备上更省。'
                     : '不使用玻璃效果，回到原始外观。';
         }
-        // 卡片模糊只在玻璃开启时有意义
-        $('lg-row-blur').style.display = bg.glass === 'liquid' ? '' : 'none';
+        // 卡片模糊只在玻璃开启时有意义；卡片折射只在液态档有意义
+        $('lg-row-blur').style.display = bg.glass === 'off' ? 'none' : '';
+        $('lg-row-cardlens').style.display = bg.glass === 'liquid' ? '' : 'none';
+        $('lg-opt-cardlens').checked = bg.cardLens !== false;
 
         $('lg-opt-blur').checked = bg.blur;
         $('lg-opt-motion').checked = bg.motion;
@@ -894,6 +1030,7 @@
 
         bindSheen();
         watchSidebarMotion();
+        bindContentHost();
 
         applyBg();
         if (isOn()) enable();
@@ -901,12 +1038,15 @@
         syncSettingsUI();
         syncAppearanceFromServer();
 
-        // 尺寸变化才需要重建贴图（重建内部会比对尺寸，没变直接返回）
+        // 尺寸变化：之前按尺寸缓存的贴图全部失效，清掉重来
         var rzTimer = null;
         window.addEventListener('resize', function () {
             clearTimeout(rzTimer);
             rzTimer = setTimeout(function () {
-                for (var i = 0; i < surfaces.length; i++) rebuildSurface(surfaces[i]);
+                clearFilterCache();
+                surfaces.forEach(function (s) { s.filterId = null; applySurfaceFilter(s); });
+                cardSurfaces.forEach(function (s) { s.filterId = null; });
+                syncCards();
                 syncAll();
             }, 180);
         }, { passive: true });
