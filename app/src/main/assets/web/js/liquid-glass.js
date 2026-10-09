@@ -134,6 +134,10 @@
             host.appendChild(el);
             nodes.push(el);
         }
+        // 暗化层也要跟着复制一份，否则玻璃内部那份会比外面亮
+        var dim = document.createElement('i');
+        dim.className = 'lg-dim';
+        host.appendChild(dim);
         return nodes;
     }
 
@@ -275,7 +279,9 @@
                     cur.classList.add('lg-sheen');
                     if (!cur.querySelector(':scope > .lg-spec')) {
                         var sp = document.createElement('div');
-                        sp.className = 'lg-spec on';
+                        // 不要在这里加 .on —— 可见性由父级的 .lg-sheen 控制，
+                        // 否则指针移开后光斑会永久留在卡片上
+                        sp.className = 'lg-spec';
                         cur.insertBefore(sp, cur.firstChild);
                     }
                 }
@@ -336,7 +342,7 @@
      *  3c. 背景设置（极光 / 纯色 / 自定义图片）
      * ------------------------------------------------------------------ */
     var BG_KEY = 'lg-bg';
-    var bg = { mode: 'aurora', solid: '#0b1020', image: '', blur: true, dim: 0.25 };
+    var bg = { mode: 'aurora', solid: '#0b1020', image: '', blur: true, dim: 0.25, motion: true };
     var IMAGE_MAX_EDGE = 1600;
     var IMAGE_SOFT_LIMIT = 3.6 * 1024 * 1024;   // localStorage 一般 5MB，留点余量
 
@@ -351,6 +357,7 @@
                     if (typeof o.image === 'string') bg.image = o.image;
                     if (typeof o.blur === 'boolean') bg.blur = o.blur;
                     if (typeof o.dim === 'number') bg.dim = Math.min(0.8, Math.max(0, o.dim));
+                    if (typeof o.motion === 'boolean') bg.motion = o.motion;
                 }
             }
         } catch (e) {}
@@ -373,8 +380,9 @@
             root.setAttribute('data-lg-bg', 'aurora');
         }
         root.setAttribute('data-lg-blur', bg.blur ? 'on' : 'off');
-        // 亮度 = 1 - 暗化量：自定义图片常常偏亮，需要压一压才能保证前景可读
-        root.style.setProperty('--lg-dim', (1 - bg.dim).toFixed(3));
+        // 一层半透明黑，纯合成；不用 filter: brightness()（全屏滤镜，代价高）
+        root.style.setProperty('--lg-dim-op', bg.dim.toFixed(3));
+        startMotion();
     }
 
     /** 读图 → 等比缩到 1600px 内 → 转 JPEG，避免把大图塞进 localStorage */
@@ -407,9 +415,28 @@
     /* 每帧只做 blob 的 transform（纯合成，不触发布局）。
        玻璃层与视口的对齐只在尺寸/位置真的变了时才重算 —— 之前每帧调
        getBoundingClientRect() 会强制同步布局，是卡顿的另一个来源。 */
+    /* 极光动得很慢，不需要 60fps。
+       而且背景每变一次，页面上所有 backdrop-filter 都要重新采样一次背景 ——
+       锁到 ~15fps 能省掉大约 3/4 的开销，视觉上看不出区别。 */
+    var BLOB_INTERVAL = 66;
+    var lastBlobTs = -1e9;
+
     function tick(t) {
-        stepBlobs(t);
-        if (isOn()) rafId = requestAnimationFrame(tick);
+        if (!bg.motion || document.hidden || !isOn()) { rafId = null; return; }
+        if (t - lastBlobTs >= BLOB_INTERVAL) {
+            lastBlobTs = t;
+            stepBlobs(t);
+        }
+        rafId = requestAnimationFrame(tick);
+    }
+
+    function startMotion() {
+        if (!isOn() || !bg.motion || document.hidden) return;
+        if (rafId === null) { lastBlobTs = -1e9; rafId = requestAnimationFrame(tick); }
+    }
+
+    function stopMotion() {
+        if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
     }
 
     function syncAll() {
@@ -431,13 +458,13 @@
             if (s) surfaces.push(s);
         }
         syncAll();
-        if (rafId === null) rafId = requestAnimationFrame(tick);
+        startMotion();
     }
 
     function disable() {
         if (!active) return;
         active = false;
-        if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+        stopMotion();
         for (var i = 0; i < surfaces.length; i++) {
             var s = surfaces[i];
             if (s.layer.parentNode) s.layer.parentNode.removeChild(s.layer);
@@ -493,6 +520,8 @@
             '      <label class="lg-switch"><input type="checkbox" id="lg-opt-skin"><i></i></label></div>' +
             '    <div class="lg-row"><span>毛玻璃模糊<small>关掉可明显提升老设备流畅度</small></span>' +
             '      <label class="lg-switch"><input type="checkbox" id="lg-opt-blur"><i></i></label></div>' +
+            '    <div class="lg-row"><span>背景动效<small>数据刷新频繁时，关掉可以消除闪烁</small></span>' +
+            '      <label class="lg-switch"><input type="checkbox" id="lg-opt-motion"><i></i></label></div>' +
             '    <div class="lg-sub">背景</div>' +
             '    <div class="lg-seg" id="lg-bg-seg">' +
             '      <button type="button" data-mode="aurora">极光</button>' +
@@ -538,6 +567,10 @@
         $('lg-opt-dim').addEventListener('input', function () {
             bg.dim = (+this.value) / 100; saveBg(); applyBg();
         });
+        $('lg-opt-motion').addEventListener('change', function () {
+            bg.motion = this.checked; saveBg();
+            if (bg.motion) startMotion(); else stopMotion();
+        });
         $('lg-file-input').addEventListener('change', function () {
             var f = this.files && this.files[0];
             this.value = '';
@@ -563,6 +596,7 @@
         if (!$('lg-settings')) return;
         $('lg-opt-skin').checked = isOn();
         $('lg-opt-blur').checked = bg.blur;
+        $('lg-opt-motion').checked = bg.motion;
         $('lg-opt-solid').value = bg.solid;
         $('lg-opt-dim').value = Math.round(bg.dim * 100);
         $$('#lg-bg-seg button').forEach(function (b) {
@@ -650,6 +684,11 @@
         window.addEventListener('orientationchange', function () {
             setTimeout(function () { syncAll(); }, 300);
         }, { passive: true });
+
+        // 页面不可见时停掉背景动画，省电也省得回来时闪一下
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) stopMotion(); else startMotion();
+        });
     }
 
     if (document.readyState === 'loading') {

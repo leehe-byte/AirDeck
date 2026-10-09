@@ -51,9 +51,21 @@
     overflow: hidden;
     background: #060814;
     pointer-events: none;
-    contain: strict;
-    /* 背景暗化：自定义图片/浅色背景下，靠它把前景对比度拉回来 */
-    filter: brightness(var(--lg-dim, 1));
+    /* layout+paint 就够了。不要用 strict —— 它含 size containment，
+       和 backdrop-filter 的背景采样叠在一起容易出怪问题 */
+    contain: layout paint style;
+}
+
+/* 背景暗化层。
+   原来用的是 .lg-aurora 上的 filter: brightness()，那是个**全屏滤镜**，
+   背景每变一次就要整屏重跑一遍，手机上代价很大 —— 换成一层半透明黑，
+   纯合成，没有逐像素开销。 */
+.lg-dim {
+    position: absolute;
+    inset: 0;
+    background: #000;
+    opacity: var(--lg-dim-op, 0);
+    pointer-events: none;
 }
 
 /* 每团光一个元素，位置和大小靠 JS 每帧写 transform，保证基础层和玻璃副本完全同步
@@ -162,7 +174,9 @@
     mask-composite: exclude;
 }
 
-/* 跟随指针的镜面高光 */
+/* 跟随指针的镜面高光。
+   注意可见性绑在**卡片的 .lg-sheen 类**上，不是元素自己的 .on ——
+   之前把 on 写在元素上，指针移开后类没被移除，光斑就永久留在卡片上了。 */
 .lg-spec {
     position: absolute;
     inset: 0;
@@ -174,7 +188,7 @@
         rgba(255, 255, 255, .28), rgba(255, 255, 255, .06) 45%, transparent 70%);
     mix-blend-mode: screen;
 }
-.lg-spec.on { opacity: 1; }
+.lg-sheen > .lg-spec { opacity: 1; }
 
 /* ------------------------------------------------------------ 顶栏 */
 [data-skin="glass"] #header {
@@ -260,6 +274,10 @@
 }
 
 [data-skin="glass"] .nav-section { color: rgba(255, 255, 255, .38); }
+
+/* 第一个分组标题上方原来有 20px 内边距，深色侧边栏时不明显，
+   换成玻璃之后就是一条显眼的空白带，收紧一点 */
+[data-skin="glass"] .nav-menu > .nav-section:first-child { padding-top: 8px; }
 
 [data-skin="glass"] .nav-item {
     margin: 2px 10px;
