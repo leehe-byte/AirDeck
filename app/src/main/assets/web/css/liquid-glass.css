@@ -29,9 +29,10 @@
     --lg-rim-2:       rgba(255, 255, 255, .10);
     --lg-shadow:      0 18px 50px -18px rgba(0, 0, 0, .75);
 
-    /* 玻璃上的文字（深色极光背景，统一走亮色） */
-    --lg-text:    rgba(255, 255, 255, .92);
-    --lg-text-sub: rgba(255, 255, 255, .58);
+    /* 玻璃上的文字（深色极光背景，统一走亮色）
+       .70 而不是更低的透明度：背景是动态的，次级文字太淡会在亮色区域糊掉 */
+    --lg-text:     rgba(255, 255, 255, .94);
+    --lg-text-sub: rgba(255, 255, 255, .70);
 
     --lg-radius: 16px;
     --lg-blur:   18px;
@@ -51,6 +52,8 @@
     background: #060814;
     pointer-events: none;
     contain: strict;
+    /* 背景暗化：自定义图片/浅色背景下，靠它把前景对比度拉回来 */
+    filter: brightness(var(--lg-dim, 1));
 }
 
 /* 每团光一个元素，位置和大小靠 JS 每帧写 transform，保证基础层和玻璃副本完全同步
@@ -100,6 +103,22 @@
 
 /* 打开皮肤时，body 自己的背景让位给极光层 */
 [data-skin="glass"] body { background-color: transparent; }
+
+/* ---- 背景模式：极光（默认）/ 纯色 / 自定义图片 ---- */
+[data-lg-bg="solid"] .lg-aurora { background: var(--lg-bg-solid, #0b1020); }
+[data-lg-bg="solid"] .lg-blob,
+[data-lg-bg="image"] .lg-blob { display: none; }
+
+[data-lg-bg="image"] .lg-aurora {
+    background-color: #060814;
+    background-image: var(--lg-bg-image);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+/* 照片本身就有细节，点阵/噪点可以收敛一点 */
+[data-lg-bg="image"] .lg-aurora::before { opacity: .10; }
+[data-lg-bg="image"] .lg-aurora::after { opacity: .10; }
 
 /* -------------------------------------------- 真折射层的公共结构
  *  .lg-refract  负 inset 给位移留取样余量，父级 overflow:hidden 裁掉多余部分
@@ -207,7 +226,17 @@
     background: transparent;
     overflow: hidden;
     border-right: 1px solid rgba(255, 255, 255, .08);
+    /* 提升为独立合成层，滑动时只走合成器，不触发重排/重绘 */
+    will-change: transform;
 }
+
+/* 滑动动画期间：把折射层整个撤掉。
+   #sidebar 上那个大尺寸 SVG 位移滤镜会让浏览器每帧重新栅格化，
+   并且改变 backdrop root，连带所有毛玻璃卡片一起重算背景 ——
+   这是掉帧、闪白、内容偶发空白的根源。
+   撤掉之后动画退化成纯 transform，由合成器直接跑。 */
+[data-skin="glass"] #sidebar.lg-motion .lg-refract { visibility: hidden; }
+[data-skin="glass"] #sidebar.lg-motion .lg-tint { background: rgba(6, 10, 24, .88); }
 
 /* 桌面布局下 #sidebar 是 position:static，需要显式定位，
    否则 .lg-refract / .lg-tint 这些 absolute 层的定位祖先会一路找到视口，整个玻璃层错位。
@@ -473,3 +502,217 @@
 @media (prefers-reduced-motion: reduce) {
     .lg-blob { display: none; }
 }
+
+/* 小屏把模糊半径调小：WebView 上 backdrop-filter 的代价随半径上升，
+   手机上 18px 很容易掉帧 */
+@media (max-width: 768px) {
+    [data-skin="glass"] { --lg-blur: 12px; }
+}
+
+/* ------------------------------ 关掉毛玻璃模糊（性能兜底）
+   backdrop-filter 在部分老 WebView / 低端 GPU 上会掉帧甚至渲染空白。
+   关掉之后改用不透明底色，可读性不受影响。 */
+[data-lg-blur="off"] .card,
+[data-lg-blur="off"] .sms-thread-card,
+[data-lg-blur="off"] .modal-container,
+[data-lg-blur="off"] .modal-overlay,
+[data-lg-blur="off"] .login-box,
+[data-lg-blur="off"] .status-badge,
+[data-lg-blur="off"] .btn-secondary,
+[data-lg-blur="off"] .btn-theme-login,
+[data-lg-blur="off"] .nav-item.active {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+[data-lg-blur="off"] .card,
+[data-lg-blur="off"] .sms-thread-card { background: rgba(18, 22, 40, .92); }
+[data-lg-blur="off"] .modal-container { background: rgba(18, 22, 40, .97); }
+[data-lg-blur="off"] .login-box { background: rgba(18, 22, 40, .95); }
+[data-lg-blur="off"] .modal-overlay { background: rgba(4, 6, 16, .82); }
+
+/* ------------------------------ 外观设置面板 */
+#lg-skin-fab {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 3000;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, .20);
+    background: rgba(20, 24, 44, .70);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .8);
+}
+
+.lg-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 3100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(4, 6, 16, .55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .25s ease, visibility .25s;
+}
+.lg-modal.active { opacity: 1; visibility: visible; }
+
+.lg-modal-box {
+    width: min(400px, 88vw);
+    max-height: 86vh;
+    overflow-y: auto;
+    border-radius: 20px;
+    padding: 20px;
+    background: rgba(20, 24, 44, .82);
+    border: 1px solid rgba(255, 255, 255, .16);
+    box-shadow: 0 30px 80px -24px rgba(0, 0, 0, .95), inset 0 1px 0 rgba(255, 255, 255, .20);
+    color: rgba(255, 255, 255, .92);
+    transform: scale(.94) translateY(12px);
+    transition: transform .28s cubic-bezier(.34, 1.4, .64, 1);
+}
+.lg-modal.active .lg-modal-box { transform: scale(1) translateY(0); }
+
+.lg-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, .10);
+}
+.lg-modal-head h3 { font-size: 15px; font-weight: 600; }
+.lg-x {
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, .55);
+    font-size: 15px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+.lg-x:hover { background: rgba(255, 255, 255, .10); color: #fff; }
+
+.lg-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    font-size: 13.5px;
+}
+.lg-row small { display: block; font-size: 11px; color: rgba(255, 255, 255, .45); margin-top: 2px; }
+
+.lg-sub {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, .10);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, .40);
+}
+
+.lg-seg {
+    display: flex;
+    gap: 4px;
+    padding: 3px;
+    margin: 8px 0 4px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, .30);
+    border: 1px solid rgba(255, 255, 255, .10);
+}
+.lg-seg button {
+    flex: 1;
+    padding: 8px 0;
+    font-size: 12.5px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: rgba(255, 255, 255, .60);
+    cursor: pointer;
+    transition: background .2s, color .2s;
+}
+.lg-seg button.active {
+    background: rgba(255, 255, 255, .16);
+    color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35);
+}
+
+.lg-file-btn {
+    padding: 7px 14px;
+    font-size: 12.5px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, .18);
+    background: rgba(255, 255, 255, .10);
+    color: #fff;
+    cursor: pointer;
+}
+.lg-file-btn:hover { background: rgba(255, 255, 255, .18); }
+
+#lg-opt-solid {
+    width: 44px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.lg-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 130px;
+    height: 4px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .20);
+    outline: none;
+    flex-shrink: 0;
+}
+.lg-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .5);
+    cursor: pointer;
+}
+
+.lg-hint {
+    margin-top: 10px;
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, .48);
+}
+
+/* 开关 */
+.lg-switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
+.lg-switch input { opacity: 0; width: 0; height: 0; }
+.lg-switch i {
+    position: absolute;
+    inset: 0;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .18);
+    transition: background .25s;
+}
+.lg-switch i::before {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    left: 3px; top: 3px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform .25s cubic-bezier(.34, 1.4, .64, 1);
+}
+.lg-switch input:checked + i { background: linear-gradient(140deg, #6366f1, #0ea5e9); }
+.lg-switch input:checked + i::before { transform: translateX(18px); }

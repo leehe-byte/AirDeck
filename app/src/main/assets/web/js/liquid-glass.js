@@ -293,15 +293,127 @@
     }
 
     /* ------------------------------------------------------------------ *
+     *  3b. 侧边栏滑动 —— 动画期间把折射层摘掉
+     *
+     *  #sidebar 里挂着一个 335×700+ 的 SVG 位移滤镜。
+     *  滑动时浏览器每帧都要重新栅格化它，而且 filter 会改变 backdrop root，
+     *  连带页面上所有 backdrop-filter 卡片一起重算背景 ——
+     *  表现就是掉帧 + 闪白 + 内容偶发空白。
+     *  所以滑动期间用 .lg-motion 把折射层 visibility:hidden，动画结束后再挂回来。
+     * ------------------------------------------------------------------ */
+    function watchSidebarMotion() {
+        var sb = document.querySelector('#sidebar');
+        if (!sb) return;
+        var wasOpen = document.body.classList.contains('sidebar-open');
+        var safety = null;
+
+        function endMotion() {
+            clearTimeout(safety);
+            if (!sb.classList.contains('lg-motion')) return;
+            sb.classList.remove('lg-motion');
+            syncAll();                     // 落位后再对一次，避免错位
+        }
+        function beginMotion() {
+            sb.classList.add('lg-motion');
+            clearTimeout(safety);
+            safety = setTimeout(endMotion, 600);   // transitionend 万一不触发，兜底
+        }
+
+        new MutationObserver(function () {
+            var open = document.body.classList.contains('sidebar-open');
+            if (open === wasOpen) return;
+            wasOpen = open;
+            beginMotion();
+        }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+        sb.addEventListener('transitionend', function (e) {
+            if (e.target === sb && e.propertyName === 'transform') endMotion();
+        });
+        sb.addEventListener('transitioncancel', endMotion);
+    }
+
+    /* ------------------------------------------------------------------ *
+     *  3c. 背景设置（极光 / 纯色 / 自定义图片）
+     * ------------------------------------------------------------------ */
+    var BG_KEY = 'lg-bg';
+    var bg = { mode: 'aurora', solid: '#0b1020', image: '', blur: true, dim: 0.25 };
+    var IMAGE_MAX_EDGE = 1600;
+    var IMAGE_SOFT_LIMIT = 3.6 * 1024 * 1024;   // localStorage 一般 5MB，留点余量
+
+    function loadBg() {
+        try {
+            var raw = localStorage.getItem(BG_KEY);
+            if (raw) {
+                var o = JSON.parse(raw);
+                if (o && typeof o === 'object') {
+                    if (o.mode) bg.mode = o.mode;
+                    if (o.solid) bg.solid = o.solid;
+                    if (typeof o.image === 'string') bg.image = o.image;
+                    if (typeof o.blur === 'boolean') bg.blur = o.blur;
+                    if (typeof o.dim === 'number') bg.dim = Math.min(0.8, Math.max(0, o.dim));
+                }
+            }
+        } catch (e) {}
+    }
+
+    function saveBg() {
+        try { localStorage.setItem(BG_KEY, JSON.stringify(bg)); return true; }
+        catch (e) { return false; }
+    }
+
+    function applyBg() {
+        var root = document.documentElement;
+        if (bg.mode === 'image' && bg.image) {
+            root.style.setProperty('--lg-bg-image', 'url("' + bg.image + '")');
+            root.setAttribute('data-lg-bg', 'image');
+        } else if (bg.mode === 'solid') {
+            root.style.setProperty('--lg-bg-solid', bg.solid);
+            root.setAttribute('data-lg-bg', 'solid');
+        } else {
+            root.setAttribute('data-lg-bg', 'aurora');
+        }
+        root.setAttribute('data-lg-blur', bg.blur ? 'on' : 'off');
+        // 亮度 = 1 - 暗化量：自定义图片常常偏亮，需要压一压才能保证前景可读
+        root.style.setProperty('--lg-dim', (1 - bg.dim).toFixed(3));
+    }
+
+    /** 读图 → 等比缩到 1600px 内 → 转 JPEG，避免把大图塞进 localStorage */
+    function readImageFile(file, done) {
+        if (!file || !/^image\//.test(file.type)) { done(null, '不是图片文件'); return; }
+        var reader = new FileReader();
+        reader.onerror = function () { done(null, '读取失败'); };
+        reader.onload = function () {
+            var img = new Image();
+            img.onerror = function () { done(null, '图片解码失败'); };
+            img.onload = function () {
+                var s = Math.min(1, IMAGE_MAX_EDGE / Math.max(img.width, img.height));
+                var cv = document.createElement('canvas');
+                cv.width = Math.max(1, Math.round(img.width * s));
+                cv.height = Math.max(1, Math.round(img.height * s));
+                cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+                done(cv.toDataURL('image/jpeg', 0.82), null);
+            };
+            img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    /* ------------------------------------------------------------------ *
      *  4. 开关 / 生命周期
      * ------------------------------------------------------------------ */
     var rafId = null;
-    var active = false;          // 用独立标志而不是看 surfaces.length —— 登录页没有玻璃面，看长度会重复初始化
+    var active = false;          // 独立标志：登录页没有玻璃面，不能靠 surfaces.length 判重
 
+    /* 每帧只做 blob 的 transform（纯合成，不触发布局）。
+       玻璃层与视口的对齐只在尺寸/位置真的变了时才重算 —— 之前每帧调
+       getBoundingClientRect() 会强制同步布局，是卡顿的另一个来源。 */
     function tick(t) {
         stepBlobs(t);
-        for (var i = 0; i < surfaces.length; i++) syncSurface(surfaces[i]);
         if (isOn()) rafId = requestAnimationFrame(tick);
+    }
+
+    function syncAll() {
+        for (var i = 0; i < surfaces.length; i++) syncSurface(surfaces[i]);
     }
 
     function isOn() {
@@ -318,6 +430,7 @@
             var s = createSurface(SURFACES[i], i);
             if (s) surfaces.push(s);
         }
+        syncAll();
         if (rafId === null) rafId = requestAnimationFrame(tick);
     }
 
@@ -327,15 +440,12 @@
         if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
         for (var i = 0; i < surfaces.length; i++) {
             var s = surfaces[i];
-            s.layer.remove(); s.copy.remove();
             if (s.layer.parentNode) s.layer.parentNode.removeChild(s.layer);
-            var tint = s.el.querySelector(':scope > .lg-tint');
-            var spec = s.el.querySelector(':scope > .lg-spec');
-            var rim = s.el.querySelector(':scope > .lg-rim');
-            if (tint) tint.remove();
-            if (spec) spec.remove();
-            if (rim) rim.remove();
             if (s.filter.parentNode) s.filter.parentNode.removeChild(s.filter);
+            ['lg-tint', 'lg-spec', 'lg-rim'].forEach(function (c) {
+                var n = s.el.querySelector(':scope > .' + c);
+                if (n) n.remove();
+            });
         }
         surfaces = [];
         var base = document.getElementById('lg-aurora');
@@ -356,18 +466,130 @@
             try { localStorage.setItem(STORE_KEY, on ? '1' : '0'); } catch (e) {}
         }
         updateButton();
+        syncSettingsUI();
     }
 
     function updateButton() {
         var b = document.getElementById('lg-skin-btn');
-        if (b) b.textContent = isOn() ? '🧊' : '🫧';
-        if (b) b.title = isOn() ? '关闭液态玻璃' : '开启液态玻璃';
+        if (!b) return;
+        b.textContent = isOn() ? '🧊' : '🫧';
+        b.title = '外观设置';
+    }
+
+    /* ------------------------------------------------------------------ *
+     *  4b. 外观设置面板
+     * ------------------------------------------------------------------ */
+    function buildSettings() {
+        if (document.getElementById('lg-settings')) return;
+        var m = document.createElement('div');
+        m.id = 'lg-settings';
+        m.className = 'lg-modal';
+        m.innerHTML =
+            '<div class="lg-modal-box" role="dialog" aria-label="外观设置">' +
+            '  <div class="lg-modal-head"><h3>外观设置</h3>' +
+            '    <button class="lg-x" type="button" data-act="close">✕</button></div>' +
+            '  <div class="lg-modal-body">' +
+            '    <div class="lg-row"><span>液态玻璃</span>' +
+            '      <label class="lg-switch"><input type="checkbox" id="lg-opt-skin"><i></i></label></div>' +
+            '    <div class="lg-row"><span>毛玻璃模糊<small>关掉可明显提升老设备流畅度</small></span>' +
+            '      <label class="lg-switch"><input type="checkbox" id="lg-opt-blur"><i></i></label></div>' +
+            '    <div class="lg-sub">背景</div>' +
+            '    <div class="lg-seg" id="lg-bg-seg">' +
+            '      <button type="button" data-mode="aurora">极光</button>' +
+            '      <button type="button" data-mode="solid">纯色</button>' +
+            '      <button type="button" data-mode="image">图片</button>' +
+            '    </div>' +
+            '    <div class="lg-row" id="lg-solid-row"><span>背景色</span>' +
+            '      <input type="color" id="lg-opt-solid"></div>' +
+            '    <div class="lg-row" id="lg-image-row"><span>自定义图片</span>' +
+            '      <button type="button" class="lg-file-btn" data-act="pick">选择图片</button></div>' +
+            '    <div class="lg-row"><span>背景暗化<small>自定义图片偏亮时，靠它拉回对比度</small></span>' +
+            '      <input type="range" id="lg-opt-dim" min="0" max="70" step="5" class="lg-range"></div>' +
+            '    <input type="file" accept="image/*" id="lg-file-input" hidden>' +
+            '    <div class="lg-hint" id="lg-hint">图片会自动缩到 1600px 内并压缩后保存在本机。</div>' +
+            '  </div>' +
+            '</div>';
+        document.body.appendChild(m);
+
+        var $ = function (id) { return document.getElementById(id); };
+
+        m.addEventListener('click', function (e) {
+            if (e.target === m || (e.target.closest && e.target.closest('[data-act="close"]'))) {
+                closeSettings();
+                return;
+            }
+            var seg = e.target.closest && e.target.closest('#lg-bg-seg button');
+            if (seg) {
+                bg.mode = seg.getAttribute('data-mode');
+                saveBg(); applyBg(); syncSettingsUI();
+            }
+            if (e.target.closest && e.target.closest('[data-act="pick"]')) {
+                $('lg-file-input').click();
+            }
+        });
+
+        $('lg-opt-skin').addEventListener('change', function () { setSkin(this.checked); });
+        $('lg-opt-blur').addEventListener('change', function () {
+            bg.blur = this.checked; saveBg(); applyBg();
+        });
+        $('lg-opt-solid').addEventListener('input', function () {
+            bg.solid = this.value; bg.mode = 'solid'; saveBg(); applyBg(); syncSettingsUI();
+        });
+        $('lg-opt-dim').addEventListener('input', function () {
+            bg.dim = (+this.value) / 100; saveBg(); applyBg();
+        });
+        $('lg-file-input').addEventListener('change', function () {
+            var f = this.files && this.files[0];
+            this.value = '';
+            if (!f) return;
+            var hint = $('lg-hint');
+            hint.textContent = '处理中…';
+            readImageFile(f, function (dataUrl, err) {
+                if (err || !dataUrl) { hint.textContent = '图片处理失败：' + (err || '未知错误'); return; }
+                if (dataUrl.length > IMAGE_SOFT_LIMIT) {
+                    hint.textContent = '图片太大，压缩后仍超出本机存储上限，换一张小一点的吧。';
+                    return;
+                }
+                bg.image = dataUrl; bg.mode = 'image';
+                if (!saveBg()) { hint.textContent = '保存失败：本机存储空间不足。'; return; }
+                applyBg(); syncSettingsUI();
+                hint.textContent = '已应用。背景有细节时，顶栏/侧边栏的折射会明显得多。';
+            });
+        });
+    }
+
+    function syncSettingsUI() {
+        var $ = function (id) { return document.getElementById(id); };
+        if (!$('lg-settings')) return;
+        $('lg-opt-skin').checked = isOn();
+        $('lg-opt-blur').checked = bg.blur;
+        $('lg-opt-solid').value = bg.solid;
+        $('lg-opt-dim').value = Math.round(bg.dim * 100);
+        $$('#lg-bg-seg button').forEach(function (b) {
+            b.classList.toggle('active', b.getAttribute('data-mode') === bg.mode);
+        });
+        $('lg-solid-row').style.display = bg.mode === 'solid' ? '' : 'none';
+        $('lg-image-row').style.display = bg.mode === 'image' ? '' : 'none';
+    }
+
+    function $$(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+
+    function openSettings() {
+        buildSettings();
+        syncSettingsUI();
+        document.getElementById('lg-settings').classList.add('active');
+    }
+    function closeSettings() {
+        var m = document.getElementById('lg-settings');
+        if (m) m.classList.remove('active');
     }
 
     /* ------------------------------------------------------------------ *
      *  5. 启动
      * ------------------------------------------------------------------ */
     function boot() {
+        loadBg();
+
         // 极光基础层 + SVG 容器
         if (!document.getElementById('lg-aurora')) {
             var base = document.createElement('div');
@@ -386,30 +608,47 @@
             document.body.appendChild(defs);
         }
 
-        // 顶栏上的皮肤开关
+        // 顶栏按钮：打开外观设置
         var top = document.querySelector('#header .top-status');
         if (top && !document.getElementById('lg-skin-btn')) {
             var btn = document.createElement('button');
             btn.id = 'lg-skin-btn';
             btn.type = 'button';
-            btn.addEventListener('click', function () { setSkin(!isOn()); });
+            btn.addEventListener('click', openSettings);
             top.insertBefore(btn, top.firstChild);
         }
 
+        // 登录页没有顶栏，放一个浮动入口
+        if (!top && !document.getElementById('lg-skin-fab') && document.querySelector('.login-box')) {
+            var fab = document.createElement('button');
+            fab.id = 'lg-skin-fab';
+            fab.type = 'button';
+            fab.title = '外观设置';
+            fab.textContent = '🧊';
+            fab.addEventListener('click', openSettings);
+            document.body.appendChild(fab);
+        }
+
         bindSheen();
+        watchSidebarMotion();
 
         var saved = null;
         try { saved = localStorage.getItem(STORE_KEY); } catch (e) {}
+        applyBg();
         // 未设置过时默认开启（这是特性分支）
         setSkin(saved === null ? true : saved === '1', false);
 
-        // resize 时重建贴图（防抖）；尺寸没变的话 rebuild 内部会直接返回
+        // 尺寸变化才需要重建贴图（重建内部会比对尺寸，没变直接返回）
         var rzTimer = null;
         window.addEventListener('resize', function () {
             clearTimeout(rzTimer);
             rzTimer = setTimeout(function () {
                 for (var i = 0; i < surfaces.length; i++) rebuildSurface(surfaces[i]);
+                syncAll();
             }, 180);
+        }, { passive: true });
+        window.addEventListener('orientationchange', function () {
+            setTimeout(function () { syncAll(); }, 300);
         }, { passive: true });
     }
 
