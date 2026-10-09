@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liquid Glass 皮肤预览 · BridgeLink Manager</title>
+<!-- 直接引用 assets 里的真实样式，改样式这里立刻能看到 -->
+<link rel="stylesheet" href="../app/src/main/assets/web/css/style.css">
+<link rel="stylesheet" href="../app/src/main/assets/web/css/liquid-glass.css">
+</head>
+<body>
+
+<header id="header">
+    <div class="header-container">
+        <div class="brand">
+            <div id="menu-toggle">☰</div>
+            <span class="logo">B</span>
+            <span class="name">BridgeLink <span>Manager</span></span>
+        </div>
+        <div class="top-status">
+            <button id="theme-btn" class="btn-theme" title="切换主题">🌓</button>
+            <span id="system-info" class="status-badge">在线</span>
+            <button id="logout-btn" class="btn-logout">退出</button>
+        </div>
+    </div>
+</header>
+
+<div class="main-wrapper">
+    <div id="sidebar-overlay"></div>
+    <aside id="sidebar">
+        <nav class="nav-menu">
+            <div class="nav-section">状态</div>
+            <a href="javascript:void(0)" class="nav-item active" data-page="overview"><p>📊</p> 状态总览</a>
+
+            <div class="nav-section collapsible">网络配置 <span class="toggle-icon"></span></div>
+            <div class="section-content">
+                <a href="javascript:void(0)" class="nav-item"><p>🏠</p> 局域网设置</a>
+                <a href="javascript:void(0)" class="nav-item"><p>ℹ️</p> 网络详情</a>
+                <a href="javascript:void(0)" class="nav-item"><p>📡</p> 无线配置</a>
+                <a href="javascript:void(0)" class="nav-item"><p>🩺</p> 网络调试</a>
+            </div>
+
+            <div class="nav-section collapsible">应用服务 <span class="toggle-icon"></span></div>
+            <div class="section-content">
+                <a href="javascript:void(0)" class="nav-item"><p>📂</p> Samba 共享</a>
+            </div>
+
+            <div class="nav-section collapsible">系统管理 <span class="toggle-icon"></span></div>
+            <div class="section-content">
+                <a href="javascript:void(0)" class="nav-item"><p>📱</p> 远程控制</a>
+                <a href="javascript:void(0)" class="nav-item"><p>🔒</p> 安全设置</a>
+                <a href="javascript:void(0)" class="nav-item"><p>⚙️</p> AT 指令</a>
+                <a href="javascript:void(0)" class="nav-item"><p>💻</p> Web 终端</a>
+                <a href="javascript:void(0)" class="nav-item"><p>⚡</p> 电源管理</a>
+                <a href="javascript:void(0)" class="nav-item"><p>🔌</p> ADB 控制</a>
+            </div>
+
+            <div class="nav-section">通信</div>
+            <a href="javascript:void(0)" class="nav-item"><p>✉️</p> 短信列表</a>
+            <div class="nav-section">扩展</div>
+            <a href="javascript:void(0)" class="nav-item"><p>🧩</p> 插件管理</a>
+            <div class="nav-section">关于</div>
+            <a href="javascript:void(0)" class="nav-item"><p>💡</p> 关于本项目</a>
+        </nav>
+    </aside>
+
+    <main id="content">
+        <div class="card-grid">
+            <div class="card">
+                <div class="card-header"><h3>网络状态</h3><span class="badge">已连接</span></div>
+                <div class="modem-main">
+                    <div class="signal-icon">
+                        <div class="sig-fill" style="height:100%"></div>
+                        <div class="sig-fill" style="height:80%"></div>
+                        <div class="sig-fill" style="height:60%"></div>
+                        <div class="sig-fill" style="height:100%"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:15px;font-weight:600">中国移动</div>
+                        <div style="font-size:12px;color:var(--text-sub)">LTE · 频段 B3</div>
+                    </div>
+                </div>
+                <table class="info-table">
+                    <tr><td>运营商</td><td>CMCC</td></tr>
+                    <tr><td>信号强度</td><td>-67 dBm</td></tr>
+                    <tr><td>拨号状态</td><td>已连接</td></tr>
+                    <tr><td>运行时长</td><td><code>14d 06:22:41</code></td></tr>
+                </table>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><h3>流量统计</h3></div>
+                <div class="usage-group">
+                    <div class="usage-info"><span>本月已用</span><span>48.2 GB / 100 GB</span></div>
+                    <div class="progress-bg"><div class="progress-val" style="width:48%"></div></div>
+                </div>
+                <div class="usage-group">
+                    <div class="usage-info"><span>今日</span><span>1.7 GB</span></div>
+                    <div class="progress-bg"><div class="progress-val" style="width:22%"></div></div>
+                </div>
+                <div class="speed-row">
+                    <div class="speed-item"><small>下行</small><strong>86.4 Mbps</strong></div>
+                    <div class="speed-item"><small>上行</small><strong>23.1 Mbps</strong></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><h3>无线配置</h3></div>
+                <div class="flex-between" style="margin-bottom:14px">
+                    <span>启用热点</span>
+                    <label class="ios-switch"><input type="checkbox" checked><span class="ios-slider"></span></label>
+                </div>
+                <div class="flex-between" style="margin-bottom:14px">
+                    <span>隐身模式</span>
+                    <label class="ios-switch"><input type="checkbox"><span class="ios-slider"></span></label>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:12px;color:var(--text-sub)">SSID</label>
+                    <input class="modern-input" value="BridgeLink-5G">
+                    <div class="input-desc">2.4G / 5G 双频段同时广播</div>
+                </div>
+                <div class="segmented-control" style="display:inline-flex">
+                    <div class="seg-item active">2.4G</div>
+                    <div class="seg-item">5G</div>
+                    <div class="seg-item">自动</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h3>设备列表</h3><span class="badge">3 台</span></div>
+            <table class="info-table">
+                <tr><td>iPhone 15</td><td>192.168.1.23</td></tr>
+                <tr><td>MacBook Pro</td><td>192.168.1.41</td></tr>
+                <tr><td>未知设备</td><td>192.168.1.77</td></tr>
+            </table>
+            <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+                <button class="btn-secondary">刷新</button>
+                <button class="btn-primary">保存配置</button>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div id="custom-modal" class="modal-overlay active" style="display:none">
+    <div class="modal-container">
+        <div class="modal-header"><h3>提示</h3></div>
+        <div class="modal-body">这是一段示例文案。</div>
+        <div class="modal-footer">
+            <button class="btn-secondary">取消</button>
+            <button class="btn-primary">确定</button>
+        </div>
+    </div>
+</div>
+
+<script src="../app/src/main/assets/web/js/liquid-glass.js"></script>
+</body>
+</html>

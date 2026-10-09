@@ -1,0 +1,432 @@
+/* ============================================================================
+ *  Liquid Glass 皮肤
+ *
+ *  全部样式都挂在 [data-skin="glass"] 下，纯增量：
+ *  不加这个属性时，界面和原来一模一样，可以随时切回来对比。
+ *
+ *  分两类处理：
+ *   1. 顶栏 / 侧边栏 —— 它们背后是页面背景（内容不会滚到下面），
+ *      所以能做**真折射**：复制一份极光背景 + SVG 位移滤镜。
+ *   2. 卡片 / 弹窗 / 按钮 —— 数量多且随滚动，用玻璃拟态
+ *      （backdrop-filter 模糊 + 边缘 rim light + 镜面高光）。
+ * ========================================================================== */
+
+/* ---------------------------------------------------------------- 变量 */
+:root {
+    /* 极光背景：一层底色 + 四团径向渐变。
+       基础层和玻璃内部的那份副本共用同一个 --lg-aurora，保证完全一致。 */
+    --lg-aurora:
+        radial-gradient(closest-side, rgba(88, 101, 242, .95), transparent 100%),
+        radial-gradient(closest-side, rgba(6, 182, 212, .85), transparent 100%),
+        radial-gradient(closest-side, rgba(219, 39, 119, .80), transparent 100%),
+        radial-gradient(closest-side, rgba(139, 92, 246, .85), transparent 100%),
+        linear-gradient(165deg, #060814, #0a0e21 48%, #080b18);
+
+    /* 玻璃表面 */
+    --lg-tint:        rgba(255, 255, 255, .06);
+    --lg-tint-strong: rgba(255, 255, 255, .10);
+    --lg-rim-1:       rgba(255, 255, 255, .85);
+    --lg-rim-2:       rgba(255, 255, 255, .10);
+    --lg-shadow:      0 18px 50px -18px rgba(0, 0, 0, .75);
+
+    /* 玻璃上的文字（深色极光背景，统一走亮色） */
+    --lg-text:    rgba(255, 255, 255, .92);
+    --lg-text-sub: rgba(255, 255, 255, .58);
+
+    --lg-radius: 16px;
+    --lg-blur:   18px;
+}
+
+[data-skin="glass"][data-theme='dark'] {
+    --lg-tint:        rgba(255, 255, 255, .05);
+    --lg-tint-strong: rgba(255, 255, 255, .09);
+}
+
+/* ------------------------------------------------------ 极光背景层 */
+.lg-aurora {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    background: #060814;
+    pointer-events: none;
+    contain: strict;
+}
+
+/* 每团光一个元素，位置和大小靠 JS 每帧写 transform，保证基础层和玻璃副本完全同步
+   （用 CSS animation 的话两边起始时间会差一两帧，玻璃里就能看出错位） */
+.lg-blob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 62vmax;
+    height: 62vmax;
+    margin: -31vmax 0 0 -31vmax;
+    border-radius: 50%;
+    filter: blur(6vmax);
+    will-change: transform;
+}
+
+.lg-blob.b1 { background: radial-gradient(closest-side, #5865f2, transparent 72%); }
+.lg-blob.b2 { background: radial-gradient(closest-side, #06b6d4, transparent 72%); }
+.lg-blob.b3 { background: radial-gradient(closest-side, #db2777, transparent 72%); }
+.lg-blob.b4 { background: radial-gradient(closest-side, #8b5cf6, transparent 72%); }
+
+/* 细颗粒噪点。
+   纯粹为了质感，但也顺带解决了「折射看不见」的问题 ——
+   柔和的渐变色被弯折肉眼看不出变化，必须有细节才读得出来。 */
+.lg-aurora::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: .18;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='140' height='140' filter='url(%23n)'/></svg>");
+    background-size: 140px 140px;
+}
+
+/* 淡点阵：给顶栏和侧边栏的折射提供明确的“可弯折参照物”，
+   玻璃边缘那圈点阵被挤压的效果才看得出来。 */
+.lg-aurora::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: .30;
+    background-image: radial-gradient(rgba(255, 255, 255, .55) 1px, transparent 1.2px);
+    background-size: 14px 14px;
+}
+
+/* 打开皮肤时，body 自己的背景让位给极光层 */
+[data-skin="glass"] body { background-color: transparent; }
+
+/* -------------------------------------------- 真折射层的公共结构
+ *  .lg-refract  负 inset 给位移留取样余量，父级 overflow:hidden 裁掉多余部分
+ *  .lg-aurora-copy  和视口对齐的那份极光副本
+ *  .lg-tint / .lg-rim  玻璃本身的底色和边缘高光
+ * ------------------------------------------------------------------- */
+.lg-refract {
+    position: absolute;
+    inset: -48px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.lg-aurora-copy {
+    position: absolute;
+    overflow: hidden;
+    /* left/top 由 JS 按元素在视口里的位置写入，使副本与真实视口对齐 */
+}
+
+.lg-tint {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background: var(--lg-tint);
+}
+
+/* 边缘 rim light：用 mask-composite 抠出一圈 1px 的描边 */
+.lg-rim {
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 3;
+    background: linear-gradient(150deg,
+        var(--lg-rim-1), var(--lg-rim-2) 32%,
+        var(--lg-rim-2) 58%, rgba(255, 255, 255, .55));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+
+/* 跟随指针的镜面高光 */
+.lg-spec {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity .35s ease;
+    background: radial-gradient(220px circle at var(--lg-mx, 30%) var(--lg-my, 0%),
+        rgba(255, 255, 255, .28), rgba(255, 255, 255, .06) 45%, transparent 70%);
+    mix-blend-mode: screen;
+}
+.lg-spec.on { opacity: 1; }
+
+/* ------------------------------------------------------------ 顶栏 */
+[data-skin="glass"] #header {
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, .10);
+    box-shadow: none;
+    overflow: hidden;
+}
+
+/* 顶栏只有 60px 高，折射带要窄一些，否则整条都在弯折 */
+[data-skin="glass"] #header .lg-tint {
+    background: rgba(8, 12, 28, .32);
+}
+
+[data-skin="glass"] #header .header-container { position: relative; z-index: 4; }
+[data-skin="glass"] #header .name,
+[data-skin="glass"] #header #menu-toggle { color: var(--lg-text); }
+[data-skin="glass"] #header .name span { color: var(--lg-text-sub); }
+
+[data-skin="glass"] #header .logo {
+    background: linear-gradient(140deg, #6366f1, #06b6d4);
+    box-shadow: 0 4px 14px -4px rgba(99, 102, 241, .9);
+    border-radius: 8px;
+}
+
+[data-skin="glass"] .status-badge {
+    background: rgba(82, 196, 26, .16);
+    border-color: rgba(82, 196, 26, .45);
+    color: #86efac;
+    border-radius: 99px;
+    backdrop-filter: blur(6px);
+}
+
+[data-skin="glass"] .btn-theme {
+    color: var(--lg-text);
+    border-radius: 99px;
+    backdrop-filter: blur(6px);
+}
+
+[data-skin="glass"] .btn-logout {
+    background: rgba(255, 77, 79, .18);
+    color: #fca5a5;
+    border-radius: 99px;
+    border: 1px solid rgba(255, 77, 79, .35);
+}
+
+/* -------------------------------------------------------- 侧边栏 */
+[data-skin="glass"] #sidebar {
+    background: transparent;
+    overflow: hidden;
+    border-right: 1px solid rgba(255, 255, 255, .08);
+}
+
+/* 桌面布局下 #sidebar 是 position:static，需要显式定位，
+   否则 .lg-refract / .lg-tint 这些 absolute 层的定位祖先会一路找到视口，整个玻璃层错位。
+   注意**只能加在桌面断点里**：原样式在 max-width:768px 会把它改成 position:fixed，
+   而 [data-skin] #sidebar 的特异性(0,1,1) 高于 #sidebar(0,1,0)，
+   无条件写 relative 会把移动端的浮层侧边栏顶掉，内容被挤出去。 */
+@media (min-width: 769px) {
+    [data-skin="glass"] #sidebar { position: relative; }
+}
+
+[data-skin="glass"] #sidebar .lg-tint {
+    background: rgba(6, 10, 24, .44);
+}
+
+/* 导航内容要浮在玻璃层之上 */
+[data-skin="glass"] #sidebar .nav-menu {
+    position: relative;
+    z-index: 4;
+    height: 100%;
+    overflow-y: auto;
+}
+
+[data-skin="glass"] .nav-section { color: rgba(255, 255, 255, .38); }
+
+[data-skin="glass"] .nav-item {
+    margin: 2px 10px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    color: var(--lg-text-sub);
+    transition: background .25s, color .25s, transform .18s;
+}
+
+[data-skin="glass"] .nav-item:hover {
+    background: rgba(255, 255, 255, .10);
+    color: #fff;
+    transform: translateX(2px);
+}
+
+/* 选中项做成一块小玻璃 */
+[data-skin="glass"] .nav-item.active {
+    background: linear-gradient(140deg, rgba(99, 102, 241, .55), rgba(6, 182, 212, .40));
+    color: #fff;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, .45),
+        0 8px 20px -10px rgba(99, 102, 241, .95);
+    backdrop-filter: blur(8px);
+    font-weight: 600;
+}
+
+[data-skin="glass"] .nav-section.collapsible:hover { background: rgba(255, 255, 255, .05); }
+
+/* ---------------------------------------------------------- 卡片 */
+[data-skin="glass"] .card,
+[data-skin="glass"] .sms-thread-card {
+    position: relative;
+    background: var(--lg-tint-strong);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: var(--lg-radius);
+    box-shadow: var(--lg-shadow), inset 0 1px 0 rgba(255, 255, 255, .18);
+    backdrop-filter: blur(var(--lg-blur)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(160%);
+    color: var(--lg-text);
+    transition: transform .25s cubic-bezier(.34, 1.4, .64, 1), box-shadow .25s, border-color .25s;
+    overflow: hidden;
+}
+
+[data-skin="glass"] .card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, .22);
+    box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .85), inset 0 1px 0 rgba(255, 255, 255, .28);
+}
+
+[data-skin="glass"] .card-header {
+    border-bottom: 1px solid rgba(255, 255, 255, .10);
+    position: relative;
+    z-index: 2;
+}
+
+[data-skin="glass"] .card-header h3,
+[data-skin="glass"] .card .info-table td,
+[data-skin="glass"] .card h2 { color: var(--lg-text); }
+
+[data-skin="glass"] .info-table td { border-bottom-color: rgba(255, 255, 255, .08); }
+[data-skin="glass"] .info-table td:first-child { color: var(--lg-text-sub); }
+
+[data-skin="glass"] .value-box,
+[data-skin="glass"] .progress-bg,
+[data-skin="glass"] .signal-icon,
+[data-skin="glass"] .unit-tag,
+[data-skin="glass"] .segmented-control {
+    background: rgba(0, 0, 0, .28);
+    border-color: rgba(255, 255, 255, .12);
+    color: var(--lg-text);
+}
+
+[data-skin="glass"] .seg-item { color: var(--lg-text-sub); }
+[data-skin="glass"] .seg-item.active {
+    background: rgba(255, 255, 255, .16);
+    color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 2px 8px rgba(0, 0, 0, .35);
+}
+
+[data-skin="glass"] .modern-input,
+[data-skin="glass"] .ip-range-group input,
+[data-skin="glass"] .unit-input-wrapper input {
+    background: rgba(0, 0, 0, .30);
+    border-color: rgba(255, 255, 255, .14);
+    color: var(--lg-text);
+    border-radius: 8px;
+}
+
+[data-skin="glass"] .modern-input:focus,
+[data-skin="glass"] .ip-range-group input:focus {
+    outline: none;
+    border-color: rgba(99, 102, 241, .8);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, .22);
+}
+
+[data-skin="glass"] code {
+    background-color: rgba(0, 0, 0, .35) !important;
+    color: #a5f3fc;
+}
+
+[data-skin="glass"] .inner-box-bg { background-color: rgba(0, 0, 0, .25) !important; }
+
+/* ---------------------------------------------------------- 按钮 */
+[data-skin="glass"] .btn-primary {
+    background: linear-gradient(140deg, #6366f1, #0ea5e9);
+    border-radius: 10px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .40), 0 10px 24px -12px rgba(99, 102, 241, 1);
+    transition: transform .18s, box-shadow .18s, filter .18s;
+}
+
+[data-skin="glass"] .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+[data-skin="glass"] .btn-primary:active { transform: translateY(0) scale(.98); }
+
+[data-skin="glass"] .btn-secondary {
+    background: rgba(255, 255, 255, .10);
+    border-color: rgba(255, 255, 255, .18);
+    color: var(--lg-text);
+    border-radius: 10px;
+    backdrop-filter: blur(8px);
+    transition: background .18s, transform .18s;
+}
+
+[data-skin="glass"] .btn-secondary:hover { background: rgba(255, 255, 255, .18); }
+[data-skin="glass"] .btn-secondary:active { transform: scale(.98); }
+
+/* ---------------------------------------------------------- 弹窗 */
+[data-skin="glass"] .modal-overlay {
+    background: rgba(4, 6, 16, .55);
+    backdrop-filter: blur(10px) saturate(140%);
+}
+
+[data-skin="glass"] .modal-container {
+    position: relative;
+    background: rgba(20, 24, 44, .70);
+    border: 1px solid rgba(255, 255, 255, .16);
+    border-radius: 20px;
+    box-shadow: 0 30px 80px -24px rgba(0, 0, 0, .95), inset 0 1px 0 rgba(255, 255, 255, .22);
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    color: var(--lg-text);
+}
+
+[data-skin="glass"] .modal-header { border-bottom: 1px solid rgba(255, 255, 255, .10); }
+[data-skin="glass"] .modal-header h3 { color: var(--lg-text); }
+[data-skin="glass"] .modal-body { color: var(--lg-text-sub); }
+
+[data-skin="glass"] .picker-container .modal-header { border-bottom-color: rgba(255, 255, 255, .10); }
+[data-skin="glass"] .picker-item {
+    border-bottom-color: rgba(255, 255, 255, .07);
+    color: var(--lg-text);
+}
+[data-skin="glass"] .picker-item:hover { background: rgba(255, 255, 255, .10); }
+[data-skin="glass"] .picker-item.selected {
+    background: rgba(99, 102, 241, .28);
+    color: #c7d2fe;
+}
+
+/* ------------------------------------------------------ 滚动条 */
+[data-skin="glass"] ::-webkit-scrollbar { width: 8px; height: 8px; }
+[data-skin="glass"] ::-webkit-scrollbar-track { background: transparent; }
+[data-skin="glass"] ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .18);
+    border-radius: 99px;
+}
+[data-skin="glass"] ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .30); }
+
+/* ------------------------------------------------ 皮肤切换按钮 */
+#lg-skin-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-main);
+    padding: 4px 8px;
+    border-radius: 99px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-right: 4px;
+    line-height: 1;
+}
+[data-skin="glass"] #lg-skin-btn { color: var(--lg-text); }
+
+/* ------------------------------------------------ 降级 */
+/* 不支持 backdrop-filter 的老 WebView（Chromium < 76）：用不透明底色兜住可读性 */
+@supports not (backdrop-filter: blur(1px)) {
+    [data-skin="glass"] .card,
+    [data-skin="glass"] .sms-thread-card { background: rgba(18, 22, 40, .92); }
+    [data-skin="glass"] .modal-container { background: rgba(18, 22, 40, .97); }
+    [data-skin="glass"] #header .lg-tint { background: rgba(8, 12, 28, .88); }
+    [data-skin="glass"] #sidebar .lg-tint { background: rgba(6, 10, 24, .92); }
+}
+
+/* 极光层在窄屏上缩小一点，省电 */
+@media (max-width: 768px) {
+    .lg-blob { width: 90vmax; height: 90vmax; margin: -45vmax 0 0 -45vmax; }
+    [data-skin="glass"] #sidebar { border-right: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lg-blob { display: none; }
+}
