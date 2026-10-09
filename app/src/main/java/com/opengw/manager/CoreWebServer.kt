@@ -85,6 +85,151 @@ class CoreWebServer(private val context: Context, private val port: Int) {
         return false
     }
 
+    // ===================== 外观：自定义背景图 =====================
+    // 指定一个网址，抓一次就落盘缓存：
+    //   - 刷新 / 重启都读本地文件，不再联网，所以图片不会变
+    //   - 存在服务端，换设备、换浏览器看到的都是同一张
+    // 支持两类地址：直接指向图片的 URL，以及返回 JSON 的接口
+    // （例如 Bing 每日一图 HPImageArchive.aspx?format=js，会自动从 JSON 里取图片地址）。
+    private val appearanceDir: java.io.File get() = java.io.File(context.filesDir, "appearance")
+    private val bgJsonFile: java.io.File get() = java.io.File(appearanceDir, "bg.json")
+
+    private val bgHttp: okhttp3.OkHttpClient by lazy {
+        okhttp3.OkHttpClient.Builder()
+            .connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .followRedirects(true)
+            .build()
+    }
+
+    private fun readBgMeta(): JSONObject = try {
+        val f = bgJsonFile
+        if (f.exists()) JSONObject(f.readText()) else JSONObject()
+    } catch (e: Exception) {
+        JSONObject()
+    }
+
+    private fun bgImageFile(meta: JSONObject): java.io.File {
+        val name = meta.optString("file", "")
+        return if (name.isEmpty()) java.io.File(appearanceDir, "__none__")
+        else java.io.File(appearanceDir, name)
+    }
+
+    private fun appearanceJson(): JSONObject {
+        val meta = readBgMeta()
+        val f = bgImageFile(meta)
+        val has = f.exists() && f.length() > 0
+        return JSONObject().apply {
+            put("hasImage", has)
+            put("url", meta.optString("url", ""))
+            put("resolvedUrl", meta.optString("resolvedUrl", ""))
+            put("contentType", meta.optString("contentType", "image/jpeg"))
+            put("savedAt", meta.optLong("savedAt", 0L))
+            put("bytes", if (has) f.length() else 0L)
+        }
+    }
+
+    private fun bgGet(url: String): Triple<Boolean, String, ByteArray> {
+        val req = okhttp3.Request.Builder()
+            .url(url)
+            .header("User-Agent", "Mozilla/5.0 (Linux; Android 13) BridgeLink")
+            .build()
+        bgHttp.newCall(req).execute().use { r ->
+            val ct = r.header("Content-Type") ?: ""
+            val body = r.body?.bytes() ?: ByteArray(0)
+            return Triple(r.isSuccessful, ct, body)
+        }
+    }
+
+    private fun fetchBackground(url: String): JSONObject {
+        val fail = { msg: String ->
+            JSONObject().apply { put("ok", false); put("msg", msg) }
+        }
+        if (url.isBlank()) return fail("地址为空")
+        if (!url.startsWith("http://") && !url.startsWith("https://")) return fail("只支持 http/https 地址")
+
+        return try {
+            var target = url
+            val first = bgGet(url)
+            if (!first.first) return fail("请求失败（HTTP 错误）")
+            var ct = first.second
+            var bytes = first.third
+
+            // 拿到的是 JSON（Bing 每日一图那类接口）→ 从里面取出真正的图片地址再抓一次
+            val looksJson = ct.contains("json", true) ||
+                (bytes.isNotEmpty() && bytes[0].toInt().toChar() == '{')
+            if (looksJson) {
+                val resolved = extractImageUrl(JSONObject(String(bytes, Charsets.UTF_8)), url)
+                    ?: return fail("这个接口里没找到图片地址")
+                target = resolved
+                val second = bgGet(target)
+                if (!second.first) return fail("下载图片失败（HTTP 错误）")
+                ct = second.second
+                bytes = second.third
+            }
+
+            if (!ct.startsWith("image/")) return fail("返回的不是图片（$ct）")
+            if (bytes.isEmpty()) return fail("图片内容为空")
+            if (bytes.size > 12 * 1024 * 1024) return fail("图片超过 12MB，换小一点的")
+
+            appearanceDir.mkdirs()
+            val ext = when {
+                ct.contains("png") -> "png"
+                ct.contains("webp") -> "webp"
+                ct.contains("gif") -> "gif"
+                else -> "jpg"
+            }
+            val name = "bg.$ext"
+            // 先写临时文件再改名，避免读到写了一半的文件
+            val tmp = java.io.File(appearanceDir, "bg.tmp")
+            tmp.writeBytes(bytes)
+            val old = bgImageFile(readBgMeta())
+            if (old.exists() && old.name != name) old.delete()
+            val dst = java.io.File(appearanceDir, name)
+            if (dst.exists()) dst.delete()
+            tmp.renameTo(dst)
+
+            bgJsonFile.writeText(JSONObject().apply {
+                put("url", url)
+                put("resolvedUrl", target)
+                put("contentType", ct)
+                put("file", name)
+                put("savedAt", System.currentTimeMillis())
+            }.toString())
+
+            appearanceJson().apply { put("ok", true) }
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchBackground: ${e.message}")
+            fail(e.message ?: "下载失败")
+        }
+    }
+
+    /** 从常见字段里猜图片地址；相对路径按接口所在域名补全 */
+    private fun extractImageUrl(o: JSONObject, base: String): String? {
+        o.optJSONArray("images")?.optJSONObject(0)?.let { im ->
+            im.optString("url").takeIf { it.isNotEmpty() }?.let { return absolutize(it, base) }
+            im.optString("urlbase").takeIf { it.isNotEmpty() }?.let { return absolutize(it, base) }
+        }
+        for (k in listOf("url", "image", "img", "imageUrl", "image_url", "pic", "picture", "cover")) {
+            o.optString(k).takeIf { it.isNotEmpty() }?.let { return absolutize(it, base) }
+        }
+        o.optJSONObject("data")?.let { return extractImageUrl(it, base) }
+        return null
+    }
+
+    private fun absolutize(u: String, base: String): String {
+        if (u.startsWith("http://") || u.startsWith("https://")) return u
+        return try {
+            val b = java.net.URI(base)
+            val scheme = b.scheme ?: "https"
+            val host = b.host ?: return u
+            val port = if (b.port > 0) ":${b.port}" else ""
+            "$scheme://$host$port" + if (u.startsWith("/")) u else "/$u"
+        } catch (e: Exception) {
+            u
+        }
+    }
+
     fun start() {
         plugins.init()
         plugins.runBootScripts()
@@ -105,8 +250,12 @@ class CoreWebServer(private val context: Context, private val port: Int) {
                 intercept(io.ktor.server.application.ApplicationCallPipeline.Plugins) {
                     val path = call.request.path()
                     val isFont = path.startsWith("/api/proxy/fonts/")
+                    // 背景图同理：它要当 CSS background-image 用，CSS 带不了鉴权头。
+                    // 只放行 GET 读图；写入/清除仍走下面的 checkAuth。
+                    val isBgImage = path.startsWith("/api/appearance/background") &&
+                        call.request.httpMethod == io.ktor.http.HttpMethod.Get
                     val needAuth = (path.startsWith("/api/") && path != "/api/auth/login") || path == "/ws/scrcpy"
-                    if (needAuth && !isFont && !checkAuth(call)) {
+                    if (needAuth && !isFont && !isBgImage && !checkAuth(call)) {
                         finish()
                     }
                 }
@@ -293,6 +442,42 @@ class CoreWebServer(private val context: Context, private val port: Int) {
                         }
                     }
                     call.respondText(result.toString(), ContentType.Application.Json)
+                }
+
+                // ===== 外观：自定义背景图（服务端缓存）=====
+                // GET 图片本身不校验 token —— CSS 的 background-image 带不了自定义请求头。
+                // 背景图不是敏感数据，且写入/清除都需要鉴权。
+                get("/api/appearance") {
+                    call.respondText(appearanceJson().toString(), ContentType.Application.Json)
+                }
+
+                post("/api/appearance/background") {
+                    if (!checkAuth(call)) return@post
+                    val postData = extractPostData(call.receiveText())
+                    val url = postData.optString("url", "")
+                    val result = withContext(Dispatchers.IO) { fetchBackground(url) }
+                    call.respondText(result.toString(), ContentType.Application.Json)
+                }
+
+                get("/api/appearance/background") {
+                    val f = bgImageFile(readBgMeta())
+                    if (!f.exists() || f.length() == 0L) {
+                        call.respondText(
+                            "{\"ok\":false,\"msg\":\"未设置背景图\"}",
+                            ContentType.Application.Json, HttpStatusCode.NotFound
+                        )
+                        return@get
+                    }
+                    // no-cache：每次校验，但内容本身不会变，所以刷新/重启后拿到的是同一张
+                    call.response.header("Cache-Control", "no-cache")
+                    call.respondFile(f)
+                }
+
+                delete("/api/appearance/background") {
+                    if (!checkAuth(call)) return@delete
+                    bgImageFile(readBgMeta()).delete()
+                    if (bgJsonFile.exists()) bgJsonFile.delete()
+                    call.respondText("{\"ok\":true}", ContentType.Application.Json)
                 }
 
                 // 保存/读取 WiFi 自动开关配置

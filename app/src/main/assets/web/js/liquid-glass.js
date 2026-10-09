@@ -382,13 +382,19 @@
      *  3c. 背景设置（极光 / 纯色 / 自定义图片）
      * ------------------------------------------------------------------ */
     var BG_KEY = 'lg-bg';
-    var bg = { mode: 'aurora', solid: '#0b1020', image: '', url: '', blur: true, dim: 0.25, motion: true };
+    var bg = {
+        mode: 'aurora', solid: '#0b1020', image: '',
+        url: '', urlStamp: 0,          // 服务端缓存的背景图：源地址 + 落盘时间（做缓存失效）
+        blur: true, dim: 0.25, motion: true,
+        saved: false                   // 本机是否手动设置过；没设置过时跟随服务端
+    };
     var IMAGE_MAX_EDGE = 1600;
     var IMAGE_SOFT_LIMIT = 3.6 * 1024 * 1024;   // localStorage 一般 5MB，留点余量
 
     function loadBg() {
         var raw = null;
         try { raw = localStorage.getItem(BG_KEY); } catch (e) {}
+        bg.saved = raw !== null;
 
         // 首次运行且是小屏：默认关掉卡片的毛玻璃。
         // backdrop-filter 在 DOM 刷新时要重新采样背景，是手机上闪烁/掉帧的主要来源；
@@ -406,6 +412,7 @@
                     if (typeof o.dim === 'number') bg.dim = Math.min(0.8, Math.max(0, o.dim));
                     if (typeof o.motion === 'boolean') bg.motion = o.motion;
                     if (typeof o.url === 'string') bg.url = o.url;
+                    if (typeof o.urlStamp === 'number') bg.urlStamp = o.urlStamp;
                 }
             }
         } catch (e) {}
@@ -418,7 +425,13 @@
 
     function applyBg() {
         var root = document.documentElement;
-        if (bg.mode === 'image' && bg.image) {
+        if (bg.mode === 'url') {
+            // 用服务端缓存的那张。带上 savedAt 做缓存失效 ——
+            // 重新抓取后立刻换新，平时刷新/重启拿到的都是同一张。
+            root.style.setProperty('--lg-bg-image',
+                'url("/api/appearance/background?v=' + (bg.urlStamp || 0) + '")');
+            root.setAttribute('data-lg-bg', 'url');
+        } else if (bg.mode === 'image' && bg.image) {
             root.style.setProperty('--lg-bg-image', 'url("' + bg.image + '")');
             root.setAttribute('data-lg-bg', 'image');
         } else if (bg.mode === 'solid') {
@@ -602,6 +615,19 @@
             '    <div class="lg-row"><span>背景暗化<small>自定义图片偏亮时，靠它拉回对比度</small></span>' +
             '      <input type="range" id="lg-opt-dim" min="0" max="70" step="5" class="lg-range"></div>' +
             '    <input type="file" accept="image/*" id="lg-file-input" hidden>' +
+            '    <div class="lg-sub">背景图网址</div>' +
+            '    <div class="lg-hint" style="margin-top:0;margin-bottom:8px">' +
+            '      抓一次存到服务端，刷新和重启都不会变，所有设备共用同一张。' +
+            '      直接填图片地址，或者接口地址（例如 Bing 每日一图的 ' +
+            '      <code>HPImageArchive.aspx?format=js&amp;idx=0&amp;n=1</code>，会自动从返回的 JSON 里取图）。</div>' +
+            '    <div class="lg-row" style="flex-direction:column;align-items:stretch;gap:8px">' +
+            '      <input type="text" id="lg-opt-url" class="lg-input" spellcheck="false" ' +
+            '        placeholder="https://www.bing.com/HPImageArchive.aspx?format=js&amp;idx=0&amp;n=1">' +
+            '      <div style="display:flex;gap:8px">' +
+            '        <button type="button" class="lg-file-btn" data-act="fetch">抓取并应用</button>' +
+            '        <button type="button" class="lg-file-btn" data-act="clearbg">清除服务端背景</button>' +
+            '      </div>' +
+            '    </div>' +
             '    <div class="lg-hint" id="lg-hint">图片会自动缩到 1600px 内并压缩后保存在本机。</div>' +
             '  </div>' +
             '</div>';
@@ -622,6 +648,8 @@
             if (e.target.closest && e.target.closest('[data-act="pick"]')) {
                 $('lg-file-input').click();
             }
+            if (e.target.closest && e.target.closest('[data-act="fetch"]')) doFetchBg();
+            if (e.target.closest && e.target.closest('[data-act="clearbg"]')) doClearBg();
         });
 
         $('lg-opt-skin').addEventListener('change', function () { setSkin(this.checked); });
@@ -666,6 +694,8 @@
         $('lg-opt-motion').checked = bg.motion;
         $('lg-opt-solid').value = bg.solid;
         $('lg-opt-dim').value = Math.round(bg.dim * 100);
+        var u = $('lg-opt-url');
+        if (u && !u.value) u.value = bg.url;
         $$('#lg-bg-seg button').forEach(function (b) {
             b.classList.toggle('active', b.getAttribute('data-mode') === bg.mode);
         });
@@ -674,6 +704,64 @@
     }
 
     function $$(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+
+    function setHint(msg) {
+        var h = document.getElementById('lg-hint');
+        if (h) h.textContent = msg;
+    }
+
+    /** 让服务端抓取并缓存背景图。返回后立刻刷新 --lg-bg-image。 */
+    function doFetchBg() {
+        var inp = document.getElementById('lg-opt-url');
+        var url = inp ? inp.value.trim() : '';
+        if (!url) { setHint('先填一个图片地址或接口地址。'); return; }
+        if (typeof Api === 'undefined' || !Api.post) { setHint('Api 还没就绪，稍后再试。'); return; }
+        setHint('抓取中…接口地址需要几秒。');
+        Api.post('/api/appearance/background', { url: url }).then(function (r) {
+            if (!r || !r.ok) {
+                setHint('抓取失败：' + ((r && r.msg) || '未知错误'));
+                return;
+            }
+            bg.url = r.url || url;
+            bg.urlStamp = r.savedAt || Date.now();
+            bg.mode = 'url';
+            saveBg(); applyBg(); syncSettingsUI();
+            setHint('已应用。服务端缓存 ' + Math.round((r.bytes || 0) / 1024) + ' KB 到 ' +
+                (r.resolvedUrl || url));
+        }).catch(function (e) {
+            setHint('抓取失败：' + (e && e.message ? e.message : e));
+        });
+    }
+
+    function doClearBg() {
+        if (typeof Api === 'undefined' || !Api.request) return;
+        setHint('清除中…');
+        Api.request('/api/appearance/background', 'DELETE').then(function () {
+            bg.url = ''; bg.urlStamp = 0;
+            if (bg.mode === 'url') bg.mode = 'aurora';
+            saveBg(); applyBg(); syncSettingsUI();
+            setHint('已清除服务端背景图。');
+        }).catch(function () { setHint('清除失败。'); });
+    }
+
+    /** 打开页面时从服务端同步一次：换设备也能看到同一张背景 */
+    function syncAppearanceFromServer() {
+        if (typeof Api === 'undefined' || !Api.get) return;
+        // 登录页还没有 token。Api.request 遇到 401 会跳回 login.html，
+        // 在这里调用会变成无限刷新，所以必须先确认有 token。
+        try { if (!sessionStorage.getItem('authToken')) return; } catch (e) { return; }
+        Api.get('/api/appearance').then(function (info) {
+            if (!info) return;
+            bg.url = info.url || '';
+            bg.urlStamp = info.savedAt || 0;
+            // 服务端有图、且本机从没手动选过背景模式 → 跟随服务端
+            if (info.hasImage && !bg.saved) bg.mode = 'url';
+            var inp = document.getElementById('lg-opt-url');
+            if (inp && !inp.value) inp.value = bg.url;
+            if (bg.mode === 'url' && info.hasImage) applyBg();
+            syncSettingsUI();
+        }).catch(function () { });
+    }
 
     function openSettings() {
         buildSettings();
@@ -738,6 +826,7 @@
         applyBg();
         // 未设置过时默认开启（这是特性分支）
         setSkin(saved === null ? true : saved === '1', false);
+        syncAppearanceFromServer();
 
         // 尺寸变化才需要重建贴图（重建内部会比对尺寸，没变直接返回）
         var rzTimer = null;

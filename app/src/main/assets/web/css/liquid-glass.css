@@ -116,12 +116,14 @@
 /* 打开皮肤时，body 自己的背景让位给极光层 */
 [data-skin="glass"] body { background-color: transparent; }
 
-/* ---- 背景模式：极光（默认）/ 纯色 / 自定义图片 ---- */
+/* ---- 背景模式：极光（默认）/ 纯色 / 本地图片 / 服务端网址图 ---- */
 [data-lg-bg="solid"] .lg-aurora { background: var(--lg-bg-solid, #0b1020); }
 [data-lg-bg="solid"] .lg-blob,
-[data-lg-bg="image"] .lg-blob { display: none; }
+[data-lg-bg="image"] .lg-blob,
+[data-lg-bg="url"] .lg-blob { display: none; }
 
-[data-lg-bg="image"] .lg-aurora {
+[data-lg-bg="image"] .lg-aurora,
+[data-lg-bg="url"] .lg-aurora {
     background-color: #060814;
     background-image: var(--lg-bg-image);
     background-size: cover;
@@ -129,8 +131,10 @@
     background-repeat: no-repeat;
 }
 /* 照片本身就有细节，点阵/噪点可以收敛一点 */
-[data-lg-bg="image"] .lg-aurora::before { opacity: .10; }
-[data-lg-bg="image"] .lg-aurora::after { opacity: .10; }
+[data-lg-bg="image"] .lg-aurora::before,
+[data-lg-bg="url"] .lg-aurora::before { opacity: .10; }
+[data-lg-bg="image"] .lg-aurora::after,
+[data-lg-bg="url"] .lg-aurora::after { opacity: .10; }
 
 /* -------------------------------------------- 真折射层的公共结构
  *  .lg-refract  负 inset 给位移留取样余量，父级 overflow:hidden 裁掉多余部分
@@ -687,6 +691,22 @@
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35);
 }
 
+.lg-input {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 12.5px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, .14);
+    background: rgba(0, 0, 0, .30);
+    color: rgba(255, 255, 255, .92);
+    outline: none;
+}
+.lg-input:focus {
+    border-color: rgba(99, 102, 241, .8);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, .22);
+}
+.lg-input::placeholder { color: rgba(255, 255, 255, .32); }
+
 .lg-file-btn {
     padding: 7px 14px;
     font-size: 12.5px;
@@ -697,6 +717,7 @@
     cursor: pointer;
 }
 .lg-file-btn:hover { background: rgba(255, 255, 255, .18); }
+.lg-file-btn[disabled] { opacity: .5; cursor: default; }
 
 #lg-opt-solid {
     width: 44px;
