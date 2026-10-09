@@ -296,6 +296,7 @@
      *  4. 开关 / 生命周期
      * ------------------------------------------------------------------ */
     var rafId = null;
+    var active = false;          // 用独立标志而不是看 surfaces.length —— 登录页没有玻璃面，看长度会重复初始化
 
     function tick(t) {
         stepBlobs(t);
@@ -308,7 +309,8 @@
     }
 
     function enable() {
-        if (surfaces.length) return;
+        if (active) return;
+        active = true;
         var base = document.getElementById('lg-aurora');
         blobGroups = [{ nodes: createBlobSet(base) }];
         surfaces = [];
@@ -320,6 +322,8 @@
     }
 
     function disable() {
+        if (!active) return;
+        active = false;
         if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
         for (var i = 0; i < surfaces.length; i++) {
             var s = surfaces[i];
