@@ -43,6 +43,32 @@
     --lg-tint-strong: rgba(255, 255, 255, .09);
 }
 
+/* ============================================ 基础主题变量重映射
+ *
+ * 页面里大量用了内联写法，比如：
+ *     <div style="background: var(--inner-bg); border: 1px solid var(--border-color)">
+ * 内联样式压不过 !important，但**变量本身定义在 :root 上** ——
+ * 只要在皮肤作用域内重定义同名变量，所有内联样式会自动跟着变，
+ * 不必逐个去覆盖（也覆盖不全）。
+ *
+ * 这就是「网络模式 / USB 上网协议」那两个白框的成因：
+ * 浅色主题下 --inner-bg 是 #f9f9f9，而皮肤把卡片文字统一设成了白色，
+ * 白字压白底，标签直接看不见。顺带 --text-sub 是 #8c8c8c 灰，
+ * 压在深色玻璃上也糊，一并重映射。
+ *
+ * 特异性 (0,1,0) 与 :root / [data-theme] 相同，靠加载顺序取胜 ——
+ * liquid-glass.css 在 style.css 之后加载，所以这里赢。 */
+[data-skin="glass"] {
+    --bg:           rgba(255, 255, 255, .07);
+    --card-bg:      rgba(255, 255, 255, .08);
+    --inner-bg:     rgba(255, 255, 255, .06);
+    --code-bg:      rgba(0, 0, 0, .35);
+    --text-main:    var(--lg-text);
+    --text-sub:     var(--lg-text-sub);
+    --border-color: rgba(255, 255, 255, .13);
+    --item-hover:   rgba(255, 255, 255, .10);
+}
+
 /* ------------------------------------------------------ 极光背景层 */
 .lg-aurora {
     position: fixed;
@@ -385,15 +411,22 @@
 }
 [data-skin="glass"][data-lg-glass="liquid"][data-lg-cardlens="on"] .card > .lg-tint,
 [data-skin="glass"][data-lg-glass="liquid"][data-lg-cardlens="on"] .sms-thread-card > .lg-tint {
-    background: rgba(10, 14, 32, .30);
+    background: rgba(10, 14, 32, .46);
+}
+
+/* 背景是照片时，正文压在亮部会糊。除了加厚底色，再给文字一层很轻的
+   投影 —— 这是最省、也最不影响玻璃通透感的做法。 */
+[data-skin="glass"] .card,
+[data-skin="glass"] .sms-thread-card {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .50);
 }
 
 /* 液态档 + 模糊开启：给玻璃面压一层轻模糊，让正文在花哨背景上也能读。
    半径刻意比毛玻璃档小很多（5px vs 18px）—— 太大会把边缘的折射一起糊掉，
    那就退化成普通毛玻璃了。 */
 [data-skin="glass"][data-lg-glass="liquid"][data-lg-blur="on"] .lg-frost {
-    backdrop-filter: blur(5px) saturate(150%);
-    -webkit-backdrop-filter: blur(5px) saturate(150%);
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
 }
 
 [data-skin="glass"] .card-header {
