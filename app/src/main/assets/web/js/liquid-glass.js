@@ -469,6 +469,55 @@
     }
 
     /* ------------------------------------------------------------------ *
+     *  3e. 侧边栏导航的「液态玻璃气泡」
+     *
+     *  点哪个就滑到哪个。这里用 backdrop-filter 而不是 SVG 折射：
+     *  气泡里的背景正好是侧边栏**已经折射过的结果**（#sidebar 有
+     *  isolation:isolate，backdrop-filter 采样的是它内部已绘制的内容），
+     *  所以等于「玻璃上再叠一层玻璃」，而且天然对齐，
+     *  不用每帧重算位移贴图 —— 那对一个每帧都在移动的元素来说太贵了。
+     * ------------------------------------------------------------------ */
+    var navBubble = null;
+
+    function buildNavBubble() {
+        if (navBubble) return;
+        var menu = document.querySelector('#sidebar .nav-menu');
+        if (!menu) return;
+        navBubble = document.createElement('div');
+        navBubble.id = 'lg-nav-bubble';
+        navBubble.setAttribute('aria-hidden', 'true');
+        menu.insertBefore(navBubble, menu.firstChild);
+        moveNavBubble();
+    }
+
+    function destroyNavBubble() {
+        if (navBubble && navBubble.parentNode) navBubble.parentNode.removeChild(navBubble);
+        navBubble = null;
+    }
+
+    function moveNavBubble() {
+        if (!navBubble) return;
+        var item = document.querySelector('#sidebar .nav-item.active');
+        if (!item) { navBubble.style.opacity = '0'; return; }
+        // 用 offsetLeft/offsetTop（相对 offsetParent = .nav-menu），
+        // 不额外触发强制布局，也不受侧边栏滑动动画影响
+        navBubble.style.width = item.offsetWidth + 'px';
+        navBubble.style.height = item.offsetHeight + 'px';
+        navBubble.style.transform = 'translate(' + item.offsetLeft + 'px,' + item.offsetTop + 'px)';
+        navBubble.style.opacity = '1';
+    }
+
+    function watchNav() {
+        var menu = document.querySelector('#sidebar .nav-menu');
+        if (!menu) return;
+        // main.js 的 loadPage 用 classList.toggle('active') 切选中项，
+        // 所以监听 class 变化就能跟着滑过去
+        new MutationObserver(function () { moveNavBubble(); })
+            .observe(menu, { subtree: true, attributes: true, attributeFilter: ['class'] });
+        window.addEventListener('resize', moveNavBubble, { passive: true });
+    }
+
+    /* ------------------------------------------------------------------ *
      *  3b. 侧边栏滑动 —— 动画期间把折射层摘掉
      *
      *  #sidebar 里挂着一个 335×700+ 的 SVG 位移滤镜。
@@ -670,6 +719,7 @@
             if (el) surfaces.push(buildGlassLayers(el, CHROME_SURFACES[i]));
         }
         refreshCardSurfaces();
+        buildNavBubble();
         syncAll();
         startMotion();
     }
@@ -678,6 +728,7 @@
         if (!active) return;
         active = false;
         stopMotion();
+        destroyNavBubble();
         cardSurfaces.forEach(destroySurface);
         cardSurfaces = [];
         surfaces.forEach(destroySurface);
@@ -1031,6 +1082,7 @@
         bindSheen();
         watchSidebarMotion();
         bindContentHost();
+        watchNav();
 
         applyBg();
         if (isOn()) enable();
