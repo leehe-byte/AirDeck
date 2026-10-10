@@ -192,6 +192,26 @@
        滚动时跟不上合成器的速度，表现为"玻璃里的背景滑动有延迟"。 */
 }
 
+/* ============================================ 照片背景：完全交给 CSS 锚定
+ *
+ * 实测确认：background-attachment: fixed 在被 filter 的元素**内部依然生效**
+ * （构造了"盒子放在非原点、不滚动"的判定用例：条纹与外部完全连续，
+ *   而带 transform 的对照组明显错位）。
+ *
+ * 所以只要背景是"有细节的图"，就让浏览器把副本的 background 锚定到视口 ——
+ * 与 .lg-aurora（fixed + inset:0）天然一致，**不再需要 JS 每帧对位，
+ * 滚动延迟直接归零**。
+ *
+ * 极光模式不适用：它是若干会动的 DOM 元素，不是一张 background-image。
+ * 好在极光是平滑渐变，差一帧也看不出来，继续走 JS 对位即可。 */
+[data-lg-bg="image"] .lg-aurora-copy,
+[data-lg-bg="url"] .lg-aurora-copy,
+[data-lg-bg="solid"] .lg-aurora-copy {
+    background-attachment: fixed;
+    /* 抵消 JS 写的 transform（JS 侧也会跳过写入，这里是双保险） */
+    transform: none !important;
+}
+
 /* 顶栏是 position:fixed + z-index，本来就是层叠上下文；
    侧边栏不一定（桌面布局下要靠这个）。 */
 [data-skin="glass"] #sidebar { isolation: isolate; }
@@ -323,7 +343,14 @@
    这是掉帧、闪白、内容偶发空白的根源。
    撤掉之后动画退化成纯 transform，由合成器直接跑。 */
 [data-skin="glass"] #sidebar.lg-motion .lg-refract { visibility: hidden; }
-[data-skin="glass"] #sidebar.lg-motion .lg-tint { background: rgba(6, 10, 24, .88); }
+/* 滑动动画期间：折射层被 visibility:hidden 摘掉，此时只剩 .lg-tint 撑着。
+   原来给的是 rgba(6,10,24,.88) —— 还有 12% 能透过去，
+   于是侧边栏从左边滑出来的过程中能看见下面的页面内容。
+   直接给不透明色，动画期间是一块干净的实底。
+
+   注意特异性要压过下面按档位写的那两条液态/毛玻璃规则
+   （它们同样是 [data-skin][data-lg-glass] #sidebar .lg-tint，同分则后者赢）。 */
+[data-skin="glass"][data-lg-glass] #sidebar.lg-motion .lg-tint { background: #080c1c; }
 
 /* 桌面布局下 #sidebar 是 position:static，需要显式定位，
    否则 .lg-refract / .lg-tint 这些 absolute 层的定位祖先会一路找到视口，整个玻璃层错位。
@@ -694,14 +721,17 @@
         inset 0 -1px 0 rgba(0, 0, 0, .16),
         0 2px 12px -3px rgba(255, 255, 255, .30);
 }
-/* 滑块：小玻璃珠。用半透明白而不是纯白，边缘能透出一点背景，
-   不至于在轨道里显得像一块贴上去的白纸。 */
+/* 滑块：小玻璃珠。**用户特别要求这里也要透明** —— .78 的白还是个白点。
+   现在只留 .22 的白，靠 backdrop-filter 把轨道（已经过一次折射）的亮度提上来，
+   能看见颜色而不是一块白。 */
 [data-skin="glass"] .ios-slider:before {
-    background-color: rgba(255, 255, 255, .78);
+    background-color: rgba(255, 255, 255, .22);
+    backdrop-filter: blur(10px) saturate(180%) brightness(1.40);
+    -webkit-backdrop-filter: blur(10px) saturate(180%) brightness(1.40);
     box-shadow:
-        0 1px 4px rgba(0, 0, 0, .45),
-        inset 0 0 0 1px rgba(255, 255, 255, .70),
-        inset 0 -1px 2px rgba(0, 0, 0, .14);
+        0 1px 4px rgba(0, 0, 0, .42),
+        inset 0 0 0 1px rgba(255, 255, 255, .78),
+        inset 0 -1px 2px rgba(0, 0, 0, .12);
 }
 
 /* 分段控件（网络模式 / 频段 / SIM 卡槽）—— 同样按 .status-badge 的语言：
@@ -760,9 +790,20 @@
         inset 0 1px 0 rgba(255, 255, 255, .60),
         0 2px 10px -3px rgba(255, 255, 255, .20);
 }
-[data-lg-blur="off"] .segmented-control { background: rgba(20, 24, 42, .88); }
-[data-lg-blur="off"] .seg-item.active { background: rgba(255, 255, 255, .20); }
-[data-lg-blur="off"] .picker-trigger { background-color: rgba(20, 24, 42, .92) !important; }
+/* 关断模糊时的分段控件 / 下拉框。
+   之前这里是 rgba(20,24,42,.88/.92) —— 近黑，用户反馈"最底下是黑色的"。
+   改成低透明度白 + 描边，和 .btn-secondary 一套。 */
+[data-lg-blur="off"] .segmented-control {
+    background: rgba(255, 255, 255, .10);
+    border-color: rgba(255, 255, 255, .20);
+}
+[data-lg-blur="off"] .seg-item.active { background: rgba(255, 255, 255, .26); }
+[data-lg-blur="off"] .picker-trigger {
+    background-color: rgba(255, 255, 255, .12) !important;
+    border-color: rgba(255, 255, 255, .24) !important;
+    color: #fff !important;
+}
+[data-lg-blur="off"] .ios-slider:before { background-color: rgba(255, 255, 255, .42); }
 
 /* ------------------------------------------------ 操作按钮也玻璃化
  * 标杆是用户认可的 .status-badge / .btn-logout：

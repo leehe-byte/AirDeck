@@ -212,3 +212,96 @@ const cfg = await Api.get('/api/plugins/my-plugin/config');
 - 确认加载的是最新 JS：看插件页面版本徽标，或控制台 Network 里 entryJs 请求 URL（带 `?_=<时间戳>` 即为新拉取）。
 - 插件后端命令的输出通过 `/exec` 返回，可在插件页的 `console` 里打印 `res.output` 排查。
 - 若怀疑缓存导致旧代码，重装插件即可（app 会自动重置加载标记）；仍异常则强制停止并重开 app。
+
+## 9. 主题与液态玻璃（插件适配）
+
+**这一节很重要**：app 现在有液态玻璃皮肤，插件如果写死颜色，会在一片玻璃里突兀地出现一块纯色方块，浅色主题下甚至会出现「白字压白底」。
+
+### 9.1 主题挂在 `<html>` 上的属性
+
+| 属性 | 取值 | 说明 |
+|---|---|---|
+| `data-theme` | `light` / `dark` | 深浅色，顶栏 🌓 切换，也可跟随系统 |
+| `data-skin` | `glass` / 无 | 液态玻璃皮肤总开关 |
+| `data-lg-glass` | `liquid` / `frost` | 玻璃档位：液态折射 / 毛玻璃 |
+| `data-lg-blur` | `on` / `off` | 是否允许 `backdrop-filter`。**手机首次运行默认 `off`**（低端 WebView 兜底） |
+| `data-lg-bg` | `aurora` / `solid` / `image` / `url` | 背景模式 |
+| `data-lg-cardlens` | `on` / `off` | 内容卡片是否也做折射 |
+
+### 9.2 只用 CSS 变量，不要写死颜色
+
+**最容易踩的坑。** 皮肤会在 `[data-skin="glass"]` 作用域内把基础主题变量**重映射**一遍：
+
+```css
+[data-skin="glass"] {
+    --bg:           rgba(255, 255, 255, .07);
+    --card-bg:      rgba(255, 255, 255, .08);
+    --inner-bg:     rgba(255, 255, 255, .06);
+    --text-main:    var(--lg-text);       /* 白 */
+    --text-sub:     var(--lg-text-sub);
+    --border-color: rgba(255, 255, 255, .13);
+    --item-hover:   rgba(255, 255, 255, .10);
+}
+```
+
+所以：
+
+- ✅ `background: var(--inner-bg); color: var(--text-main); border: 1px solid var(--border-color);`
+- ❌ `background: #f9f9f9; color: #262626;`
+
+写死颜色的话，浅色主题下会得到「白色底 + 皮肤设的白色文字」——**白字压白底，什么都看不见**。
+（app 主体里就有两处这种内联写法，是靠重映射变量才救回来的。）
+
+变量定义在 `:root` 上，而内联样式引用的是变量 —— 所以哪怕你**内联**写 `style="background: var(--inner-bg)"`，皮肤开启时也会自动跟着变。
+
+### 9.3 优先复用现成的类
+
+插件页面会自动继承皮肤，尽量用这些类，不要另造一套：
+
+| 类名 | 用途 |
+|---|---|
+| `.card` / `.card-header` / `.card-body` | 卡片。**玻璃层由框架自动注入到 `.card` 顶部** |
+| `.info-table` | 键值表格 |
+| `.badge` | 右上角小徽标（`<span>`） |
+| `.btn-primary` / `.btn-secondary` / `.btn-danger` | 操作按钮，已玻璃化 |
+| `.modern-input` | 输入框 |
+| `.ios-switch` + `<label class="ios-slider">` | 开关（无色透明玻璃） |
+| `.segmented-control` + `.seg-item` | 分段控件 |
+| `.picker-trigger` | 下拉触发框 |
+
+### 9.4 有语义色的小按钮
+
+`<button class="badge">` 如果**内联**写了颜色，框架会自动换算成同色系玻璃：
+
+```html
+<!-- 拉黑 → 自动变红玻璃 + 浅红字 -->
+<button class="badge" style="background:#fff1f0; color:#f5222d; border-color:#ffa39e">拉黑</button>
+<!-- 移出 → 自动变绿玻璃 -->
+<button class="badge" style="background:#f6ffed; color:#52c41a; border-color:#b7eb8f">移出</button>
+<!-- 主操作：字是白的，就用底色当强调色 -->
+<button class="badge" style="background: var(--primary); color:#fff">应用更改</button>
+```
+
+规则：**强调色取内联的 `color`**（字接近白色时改取 `background`），再生成
+`rgba(强调色,.20)` 底 + `rgba(强调色,.50)` 描边 + 提亮 90 的字色。
+所以只要语义色写对，开皮肤时它是玻璃，关皮肤时自动还原。
+
+### 9.5 几条硬性约束
+
+- **不要在侧边栏里加 `backdrop-filter`**。侧边栏内嵌一个 SVG 位移滤镜，嵌套的背景采样是 Android WebView 上闪烁的主要来源。
+- **不要给自己的元素加 `position: fixed`**：`filter` 会创建包含块，`fixed` 会被解析成相对那个元素。
+- **不要用 `!important` 写死颜色**：会盖掉皮肤的变量重映射，症状同 9.2。
+- **`render()` 里不要替换整个 `.card` 的 innerHTML**。玻璃层是注入在 `.card` 顶部的，
+  整体替换会把它们冲掉，而这层注入不会自动补回（内容轮询每 2 秒更新文本，框架不能监听子树，
+  否则会被高频触发）。要重建结构的话，请替换 `.card-body` 内部的节点，不要碰 `.card` 本身。
+
+### 9.6 确实需要判断的时候
+
+```js
+const r = document.documentElement;
+const glassOn = r.getAttribute('data-skin') === 'glass';
+const mode    = r.getAttribute('data-lg-glass');   // liquid | frost
+const canBlur = r.getAttribute('data-lg-blur') === 'on';
+```
+
+一般用不上 —— 跟着 CSS 变量走就够了。

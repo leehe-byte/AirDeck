@@ -335,11 +335,14 @@
 
         var live = Array.prototype.slice.call(host.querySelectorAll('.card, .sms-thread-card'));
 
-        // 先摘掉已经不在文档里的
+        // 先摘掉已经不在文档里的；以及玻璃层被内容替换冲掉的
+        // （插件卡片若整体重建 .card 的 innerHTML，注入的层会一起消失）
         cardSurfaces = cardSurfaces.filter(function (s) {
-            if (live.indexOf(s.el) >= 0) return true;
-            destroySurface(s);
-            return false;
+            if (!s.el.isConnected || !s.layer.parentNode) {
+                destroySurface(s);
+                return false;
+            }
+            return live.indexOf(s.el) >= 0;
         });
 
         if (bg.glass !== 'liquid' || bg.cardLens === false) {
@@ -358,8 +361,19 @@
 
     /** 把玻璃内部的背景副本和真实视口对齐。
      *  用 transform 而不是 left/top —— left/top 每帧都要重新布局，
-     *  滚动时跟不上合成器，表现为"玻璃里的背景滑动有延迟"。 */
+     *  滚动时跟不上合成器，表现为"玻璃里的背景滑动有延迟"。
+     *
+     *  但照片/纯色背景根本不用走这条路：CSS 里的
+     *  [data-lg-bg="image"|"url"|"solid"] .lg-aurora-copy 用了
+     *  background-attachment: fixed，浏览器自己把 background 锚定到视口，
+     *  与 .lg-aurora 天然一致，**没有延迟**。
+     *  极光是会动的 DOM 元素，用不了这招，才需要每帧对位。 */
+    function needsJsAlign() {
+        return bg.mode !== 'image' && bg.mode !== 'url' && bg.mode !== 'solid';
+    }
+
     function syncSurface(s, r) {
+        if (!needsJsAlign()) return;
         if (!r) r = s.layer.getBoundingClientRect();
         s.copy.style.transform =
             'translate(' + (-Math.round(r.left)) + 'px,' + (-Math.round(r.top)) + 'px)';
