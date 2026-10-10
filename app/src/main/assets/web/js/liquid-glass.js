@@ -279,17 +279,24 @@
         return s;
     }
 
-    /** 按元素实际尺寸取（或建）滤镜并挂上 */
-    function applySurfaceFilter(s) {
+    /** 按元素尺寸取（或建）滤镜并挂上。
+     *  gw/gh 可由调用方传入，避免在写样式的循环里再读一次布局。 */
+    function applySurfaceFilter(s, gw, gh) {
         if (bg.glass !== 'liquid') return;
-        var r = s.el.getBoundingClientRect();
-        var gw = Math.max(4, Math.round(r.width));
-        var gh = Math.max(4, Math.round(r.height));
+        if (gw === undefined) {
+            var r0 = s.el.getBoundingClientRect();
+            gw = r0.width; gh = r0.height;
+        }
+        gw = Math.max(4, Math.round(gw));
+        gh = Math.max(4, Math.round(gh));
         if (gw <= 4 || gh <= 4) return;                      // 还没布局
-        var radius = s.cfg.radiusFromStyle
-            ? Math.round(parseFloat(getComputedStyle(s.el).borderTopLeftRadius) || 0)
-            : (s.cfg.radius || 0);
-        var rec = getGlassFilter(gw, gh, radius, s.cfg.bezel, s.cfg.refraction, s.cfg.depth);
+        // 圆角读完就缓存：getComputedStyle 也会让布局失效
+        if (s.radius === undefined) {
+            s.radius = s.cfg.radiusFromStyle
+                ? Math.round(parseFloat(getComputedStyle(s.el).borderTopLeftRadius) || 0)
+                : (s.cfg.radius || 0);
+        }
+        var rec = getGlassFilter(gw, gh, s.radius, s.cfg.bezel, s.cfg.refraction, s.cfg.depth);
         if (s.filterId === rec.id) return;
         s.filterId = rec.id;
         // 关键：直接引用 url(#id)，不要再套一层 url() —— 那会变成 url(url(#id))，
@@ -349,26 +356,50 @@
         }
     }
 
-    /** 每帧：把玻璃内部的背景副本和真实视口对齐（位置变化时必须更新） */
-    function syncSurface(s) {
-        var r = s.layer.getBoundingClientRect();
-        s.copy.style.left = (-Math.round(r.left)) + 'px';
-        s.copy.style.top = (-Math.round(r.top)) + 'px';
-        s.copy.style.width = window.innerWidth + 'px';
-        s.copy.style.height = window.innerHeight + 'px';
+    /** 把玻璃内部的背景副本和真实视口对齐。
+     *  用 transform 而不是 left/top —— left/top 每帧都要重新布局，
+     *  滚动时跟不上合成器，表现为"玻璃里的背景滑动有延迟"。 */
+    function syncSurface(s, r) {
+        if (!r) r = s.layer.getBoundingClientRect();
+        s.copy.style.transform =
+            'translate(' + (-Math.round(r.left)) + 'px,' + (-Math.round(r.top)) + 'px)';
+    }
+
+    /* 视口尺寸只写一次到 :root，副本靠 CSS 变量取用，
+       省掉每帧给每个副本写 width/height。 */
+    var vpW = 0, vpH = 0;
+    function syncViewportVars() {
+        var w = window.innerWidth, h = window.innerHeight;
+        if (w === vpW && h === vpH) return;
+        vpW = w; vpH = h;
+        var st = document.documentElement.style;
+        st.setProperty('--lg-vp-w', w + 'px');
+        st.setProperty('--lg-vp-h', h + 'px');
     }
 
     /* 滚动时卡片在动：既要重新对位，也要把视口外的卡片滤镜摘掉。
        摘掉之后 .lg-refract 显示的仍是与背景对齐的副本，视觉上等于没有这一层，
-       所以看不出来 —— 但省下了合成开销。 */
+       所以看不出来 —— 但省下了合成开销。
+
+       **读和写必须分开**：先把所有 rect 一次性读完，再统一写样式。
+       混着做的话，每次写样式都会让布局失效，下一个 getBoundingClientRect
+       又要强制一次全量布局 —— 6 张卡就是十几次同步布局，
+       这才是滚动卡顿的主因。 */
     function syncCards() {
+        var n = cardSurfaces.length;
+        if (!n) return;
         var vh = window.innerHeight;
-        for (var i = 0; i < cardSurfaces.length; i++) {
-            var s = cardSurfaces[i];
-            var r = s.layer.getBoundingClientRect();
-            if (r.bottom > -200 && r.top < vh + 200) applySurfaceFilter(s);
-            else setSurfaceFilterOff(s);
-            syncSurface(s);
+        var rects = new Array(n);
+        for (var i = 0; i < n; i++) rects[i] = cardSurfaces[i].layer.getBoundingClientRect();
+        for (var j = 0; j < n; j++) {
+            var s = cardSurfaces[j], r = rects[j];
+            if (r.bottom > -200 && r.top < vh + 200) {
+                // .lg-refract 是 inset:-48px，所以元素尺寸 = 层尺寸 - 2*MARGIN
+                applySurfaceFilter(s, r.width - MARGIN * 2, r.height - MARGIN * 2);
+            } else {
+                setSurfaceFilterOff(s);
+            }
+            syncSurface(s, r);
         }
     }
 
@@ -721,6 +752,7 @@
         }
         root.setAttribute('data-lg-blur', bg.blur ? 'on' : 'off');
         root.setAttribute('data-lg-cardlens', bg.cardLens === false ? 'off' : 'on');
+        syncViewportVars();
         // 一层半透明黑，纯合成；不用 filter: brightness()（全屏滤镜，代价高）
         root.style.setProperty('--lg-dim-op', bg.dim.toFixed(3));
         if (isOn()) startMotion(); else stopMotion();
@@ -1176,6 +1208,7 @@
         // 尺寸变化：之前按尺寸缓存的贴图全部失效，清掉重来
         var rzTimer = null;
         window.addEventListener('resize', function () {
+            syncViewportVars();            // 立刻更新，别等防抖
             clearTimeout(rzTimer);
             rzTimer = setTimeout(function () {
                 clearFilterCache();
