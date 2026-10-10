@@ -580,6 +580,84 @@
 #lg-skin-btn.lg-off { opacity: .42; }
 [data-skin="glass"] #lg-skin-btn { color: var(--lg-text); }
 
+/* ------------------------------------------------ 小型控件也玻璃化
+ * 开关（.ios-switch）、分段控件（.segmented-control）、下拉触发框（.picker-trigger）。
+ *
+ * 这几样只有 20~40px 高，做**真折射没有意义** —— 折射带还没成型就到边了。
+ * 而且它们本身就长在已经折射的卡片里，再套一层折射，内层复制的是视口对齐的
+ * 原背景、外层是折射后的，两者对不齐反而更花。
+ * 所以这里给的是同一套「材质」：半透明底 + backdrop 模糊 + 内圈高光边，
+ * 让卡片底色能透上来，视觉上和顶栏/侧边栏是一块玻璃。
+ * ------------------------------------------------------------------- */
+
+/* 开关轨道：关掉是中性玻璃，打开是绿色玻璃 —— 保留绿色，一眼能看出状态 */
+[data-skin="glass"] .ios-slider {
+    background-color: rgba(255, 255, 255, .15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, .18),
+        inset 0 1px 0 rgba(255, 255, 255, .30),
+        inset 0 -1px 0 rgba(0, 0, 0, .20),
+        0 2px 8px -3px rgba(0, 0, 0, .70);
+}
+[data-skin="glass"] input:checked + .ios-slider {
+    background-color: rgba(52, 199, 89, .72);
+    box-shadow:
+        inset 0 0 0 1px rgba(170, 255, 200, .45),
+        inset 0 1px 0 rgba(255, 255, 255, .45),
+        inset 0 -1px 0 rgba(0, 0, 0, .18),
+        0 2px 10px -2px rgba(52, 199, 89, .70);
+}
+/* 滑块当一颗小玻璃珠处理 */
+[data-skin="glass"] .ios-slider:before {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .45), inset 0 -1px 2px rgba(0, 0, 0, .12);
+}
+
+/* 分段控件（网络模式 / 频段选择） */
+[data-skin="glass"] .segmented-control {
+    background: rgba(255, 255, 255, .07);
+    border-color: rgba(255, 255, 255, .14);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 2px 10px -6px rgba(0, 0, 0, .80);
+}
+[data-skin="glass"] .seg-item { color: var(--lg-text-sub); }
+[data-skin="glass"] .seg-item.active {
+    background: linear-gradient(180deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .12));
+    color: #fff;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, .45),
+        inset 0 -1px 0 rgba(0, 0, 0, .18),
+        0 2px 8px -3px rgba(0, 0, 0, .80);
+}
+
+/* 下拉触发框：网络详情的「网络模式」「USB 上网协议」等。
+   原样式带了 !important，这里必须同样加 !important 才盖得住。 */
+[data-skin="glass"] .picker-trigger {
+    background-color: rgba(255, 255, 255, .08) !important;
+    border-color: rgba(255, 255, 255, .16) !important;
+    color: var(--lg-text) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16), 0 2px 10px -6px rgba(0, 0, 0, .80);
+}
+
+/* 关掉模糊时（低端 WebView / 手机首次运行）退回不透明底，保证对比度 */
+[data-lg-blur="off"] .ios-slider,
+[data-lg-blur="off"] input:checked + .ios-slider,
+[data-lg-blur="off"] .segmented-control,
+[data-lg-blur="off"] .seg-item.active,
+[data-lg-blur="off"] .picker-trigger {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+[data-lg-blur="off"] .ios-slider { background-color: rgba(122, 128, 150, .85); }
+[data-lg-blur="off"] input:checked + .ios-slider { background-color: rgba(40, 170, 75, .92); }
+[data-lg-blur="off"] .segmented-control { background: rgba(20, 24, 42, .88); }
+[data-lg-blur="off"] .seg-item.active { background: rgba(255, 255, 255, .20); }
+[data-lg-blur="off"] .picker-trigger { background-color: rgba(20, 24, 42, .92) !important; }
+
 /* ------------------------------------------------ 降级 */
 /* 不支持 backdrop-filter 的老 WebView（Chromium < 76）：用不透明底色兜住可读性 */
 @supports not (backdrop-filter: blur(1px)) {
