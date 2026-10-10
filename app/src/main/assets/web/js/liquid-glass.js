@@ -464,8 +464,89 @@
         var t = null;
         new MutationObserver(function () {
             clearTimeout(t);
-            t = setTimeout(function () { refreshCardSurfaces(); syncCards(); }, 60);
+            t = setTimeout(function () {
+                refreshCardSurfaces();
+                syncCards();
+                // 设备列表这类内容是 innerHTML 动态生成的，
+                // 里面的「拉黑 / 移出」按钮要跟着一起处理
+                glassifyInlineBadges(host);
+            }, 60);
         }).observe(host, { childList: true });
+    }
+
+    /* ------------------------------------------------------------------ *
+     *  3f. 内联颜色的小按钮
+     *
+     *  页面里这类按钮用内联颜色表达语义，例如：
+     *      <button class="badge" style="background:#fff1f0; color:#f5222d">拉黑</button>
+     *      <button class="badge" style="background:#f6ffed; color:#52c41a">移出</button>
+     *      <button class="badge" style="background:var(--primary); color:#fff">应用更改</button>
+     *  用一条 CSS 一刀切刷成主色，会把「红=危险 / 绿=恢复」的语义抹掉。
+     *  所以读出内联色当作强调色，换算成同色系玻璃再写回内联样式。
+     * ------------------------------------------------------------------ */
+    function parseColor(str) {
+        if (!str) return null;
+        var m = /^#([0-9a-f]{6})$/i.exec(str);
+        if (m) {
+            var n = parseInt(m[1], 16);
+            return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+        }
+        m = /^#([0-9a-f]{3})$/i.exec(str);
+        if (m) {
+            return {
+                r: parseInt(m[1][0] + m[1][0], 16),
+                g: parseInt(m[1][1] + m[1][1], 16),
+                b: parseInt(m[1][2] + m[1][2], 16)
+            };
+        }
+        m = /^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i.exec(str);
+        if (m) return { r: +m[1], g: +m[2], b: +m[3] };
+        return null;
+    }
+
+    function isNearWhite(c) { return c.r > 200 && c.g > 200 && c.b > 200; }
+
+    function glassifyInlineBadges(scope) {
+        var list = (scope || document).querySelectorAll('button.badge[style]');
+        for (var i = 0; i < list.length; i++) {
+            var el = list[i];
+            if (el.getAttribute('data-lg-btn')) continue;
+
+            // 内联值可能是 var(--primary)，取不到时用计算值兜底
+            var bg = parseColor(el.style.backgroundColor)
+                || parseColor(el.style.background)
+                || parseColor(getComputedStyle(el).backgroundColor);
+            if (!bg) continue;
+
+            // 强调色优先取内联字色；字是白的说明底色本身就是强调色
+            var accent = parseColor(el.style.color) || parseColor(getComputedStyle(el).color) || bg;
+            if (isNearWhite(accent)) accent = bg;
+
+            var a = accent.r + ',' + accent.g + ',' + accent.b;
+            var lit = function (v) { return Math.min(255, v + 90); };
+
+            el.setAttribute('data-lg-orig', el.getAttribute('style') || '');
+            el.setAttribute('data-lg-btn', '1');
+            el.style.background = 'rgba(' + a + ',.20)';
+            el.style.border = '1px solid rgba(' + a + ',.50)';
+            el.style.color = 'rgb(' + lit(accent.r) + ',' + lit(accent.g) + ',' + lit(accent.b) + ')';
+            el.style.borderRadius = '99px';
+            el.style.backdropFilter = 'blur(8px) saturate(160%)';
+            el.style.webkitBackdropFilter = 'blur(8px) saturate(160%)';
+            el.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,.18)';
+            el.style.textShadow = '0 1px 3px rgba(0,0,0,.40)';
+        }
+    }
+
+    function unglassifyInlineBadges() {
+        var list = document.querySelectorAll('button.badge[data-lg-btn]');
+        for (var i = 0; i < list.length; i++) {
+            var el = list[i];
+            var orig = el.getAttribute('data-lg-orig');
+            if (orig) el.setAttribute('style', orig); else el.removeAttribute('style');
+            el.removeAttribute('data-lg-btn');
+            el.removeAttribute('data-lg-orig');
+        }
     }
 
     /* ------------------------------------------------------------------ *
@@ -720,6 +801,7 @@
         }
         refreshCardSurfaces();
         buildNavBubble();
+        glassifyInlineBadges();
         syncAll();
         startMotion();
     }
@@ -729,6 +811,7 @@
         active = false;
         stopMotion();
         destroyNavBubble();
+        unglassifyInlineBadges();
         cardSurfaces.forEach(destroySurface);
         cardSurfaces = [];
         surfaces.forEach(destroySurface);

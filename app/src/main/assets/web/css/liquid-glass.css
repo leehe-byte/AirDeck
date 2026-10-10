@@ -656,49 +656,63 @@
  * 让卡片底色能透上来，视觉上和顶栏/侧边栏是一块玻璃。
  * ------------------------------------------------------------------- */
 
-/* 开关轨道：**无色玻璃**。
-   原来打开时是绿色，用户要求「透明的那种，不要颜色」。
-   现在两个状态都是中性玻璃，只靠圆点位置 + 一点亮度差表达状态，
-   不再引入任何色相。 */
+/* 开关轨道：**无色通透玻璃**。
+   参考用户认可的 .status-badge / .btn-logout —— 低透明度同色底 + 描边 + 模糊。
+
+   关键是不要再往上面堆白色：之前用 rgba(255,255,255,.28) 做"开"，
+   压在亮背景上就成了一块白塑料，透明感全没了。
+   现在靠 backdrop-filter 的 brightness 区分状态：
+     关 → 把背后的背景压暗（烟熏玻璃）
+     开 → 把背后的背景提亮（通透玻璃）
+   底色的白只留一点点，负责给轨道一个可辨识的体量，
+   真正的"透明"来自能看见背后背景的明暗变化。 */
 [data-skin="glass"] .ios-slider {
-    background-color: rgba(255, 255, 255, .10);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background-color: rgba(255, 255, 255, .05);
+    backdrop-filter: blur(14px) saturate(170%) brightness(.78);
+    -webkit-backdrop-filter: blur(14px) saturate(170%) brightness(.78);
     box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, .20),
-        inset 0 1px 0 rgba(255, 255, 255, .30),
-        inset 0 -1px 0 rgba(0, 0, 0, .20),
+        inset 0 0 0 1px rgba(255, 255, 255, .30),
+        inset 0 1px 0 rgba(255, 255, 255, .38),
+        inset 0 -1px 0 rgba(0, 0, 0, .22),
         0 2px 8px -3px rgba(0, 0, 0, .70);
 }
 [data-skin="glass"] input:checked + .ios-slider {
-    background-color: rgba(255, 255, 255, .28);
+    background-color: rgba(255, 255, 255, .14);
+    backdrop-filter: blur(14px) saturate(190%) brightness(1.38);
+    -webkit-backdrop-filter: blur(14px) saturate(190%) brightness(1.38);
     box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, .42),
-        inset 0 1px 0 rgba(255, 255, 255, .60),
-        inset 0 -1px 0 rgba(0, 0, 0, .18),
-        0 2px 12px -3px rgba(255, 255, 255, .35);
+        inset 0 0 0 1px rgba(255, 255, 255, .55),
+        inset 0 1px 0 rgba(255, 255, 255, .70),
+        inset 0 -1px 0 rgba(0, 0, 0, .16),
+        0 2px 12px -3px rgba(255, 255, 255, .30);
 }
-/* 滑块当一颗小玻璃珠处理 */
+/* 滑块：小玻璃珠。用半透明白而不是纯白，边缘能透出一点背景，
+   不至于在轨道里显得像一块贴上去的白纸。 */
 [data-skin="glass"] .ios-slider:before {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, .45), inset 0 -1px 2px rgba(0, 0, 0, .12);
+    background-color: rgba(255, 255, 255, .90);
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, .45),
+        inset 0 -1px 2px rgba(0, 0, 0, .14),
+        inset 0 1px 1px rgba(255, 255, 255, .90);
 }
 
-/* 分段控件（网络模式 / 频段选择） */
+/* 分段控件（网络模式 / 频段 / SIM 卡槽）—— 同样按 .status-badge 的语言：
+   容器几乎只用描边，选中项才给一点同色底，整体保持通透。 */
 [data-skin="glass"] .segmented-control {
-    background: rgba(255, 255, 255, .07);
-    border-color: rgba(255, 255, 255, .14);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 2px 10px -6px rgba(0, 0, 0, .80);
+    background: rgba(255, 255, 255, .05);
+    border: 1px solid rgba(255, 255, 255, .18);
+    padding: 2px;
+    backdrop-filter: blur(10px) saturate(160%);
+    -webkit-backdrop-filter: blur(10px) saturate(160%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12);
 }
-[data-skin="glass"] .seg-item { color: var(--lg-text-sub); }
+[data-skin="glass"] .seg-item { color: rgba(255, 255, 255, .62); }
 [data-skin="glass"] .seg-item.active {
-    background: linear-gradient(180deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .12));
+    background: rgba(255, 255, 255, .16);
     color: #fff;
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, .45),
-        inset 0 -1px 0 rgba(0, 0, 0, .18),
-        0 2px 8px -3px rgba(0, 0, 0, .80);
+        inset 0 0 0 1px rgba(255, 255, 255, .34),
+        inset 0 1px 0 rgba(255, 255, 255, .45);
 }
 
 /* 下拉触发框：网络详情的「网络模式」「USB 上网协议」等。
@@ -728,104 +742,80 @@
 [data-lg-blur="off"] .picker-trigger { background-color: rgba(20, 24, 42, .92) !important; }
 
 /* ------------------------------------------------ 操作按钮也玻璃化
- * 原来是 background: var(--primary) 一块纯色。
- * 改成同色系的半透明玻璃：仍然是蓝色调、一眼认得出是主操作，
- * 但背景能透上来，和整页玻璃是一套。
+ * 标杆是用户认可的 .status-badge / .btn-logout：
+ *     低透明度同色底 + 同色描边 + 浅色文字 + backdrop 模糊
+ * 不再用厚渐变 + 强投影 —— 压在照片上会变成一块塑料。
  *
- * button.badge 在页面里带内联 style="background: var(--primary)"，
- * 内联样式只有 !important 能盖住，所以这一组统一加 !important。
- * 文字始终是纯白 + 轻微投影，保证任何背景下都看得清。
+ * button.badge **不在这里处理**：它们在页面里用内联颜色表达语义
+ * （拉黑=浅红底红字、移出=浅绿底绿字），一刀切会把语义抹掉。
+ * 那批交给 JS 读内联色后换算成同色系玻璃，见 glassifyInlineBadges()。
  */
-[data-skin="glass"] .btn-primary,
-[data-skin="glass"] button.badge,
-[data-skin="glass"] .nav-btn,
-[data-skin="glass"] .btn {
-    background: linear-gradient(180deg, rgba(96, 178, 255, .46), rgba(24, 144, 255, .24)) !important;
-    color: #fff !important;
-    border: 1px solid rgba(150, 205, 255, .42) !important;
-    border-radius: 8px !important;
-    backdrop-filter: blur(10px) saturate(170%);
-    -webkit-backdrop-filter: blur(10px) saturate(170%);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, .48),
-        inset 0 -1px 0 rgba(0, 0, 0, .18),
-        0 6px 18px -8px rgba(24, 144, 255, .85) !important;
-    text-shadow: 0 1px 3px rgba(0, 20, 60, .55);
-    transition: transform .18s, filter .18s;
+[data-skin="glass"] .btn-primary {
+    background: rgba(24, 144, 255, .20) !important;
+    border: 1px solid rgba(24, 144, 255, .50) !important;
+    color: #bfdbfe !important;
+    border-radius: 99px !important;
+    backdrop-filter: blur(8px) saturate(160%);
+    -webkit-backdrop-filter: blur(8px) saturate(160%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18);
+    text-shadow: 0 1px 3px rgba(0, 20, 60, .45);
+    transition: filter .18s;
 }
-[data-skin="glass"] .btn-primary:hover,
-[data-skin="glass"] button.badge:hover,
-[data-skin="glass"] .nav-btn:hover,
-[data-skin="glass"] .btn:hover { filter: brightness(1.18); }
+[data-skin="glass"] .btn-primary:hover { filter: brightness(1.25); }
 
-/* 次要操作：中性玻璃，不带强调色 */
 [data-skin="glass"] .btn-secondary {
-    background: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .07)) !important;
+    background: rgba(255, 255, 255, .10) !important;
+    border: 1px solid rgba(255, 255, 255, .26) !important;
     color: var(--lg-text) !important;
-    border: 1px solid rgba(255, 255, 255, .20) !important;
-    border-radius: 8px !important;
-    backdrop-filter: blur(10px) saturate(150%);
-    -webkit-backdrop-filter: blur(10px) saturate(150%);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, .34),
-        inset 0 -1px 0 rgba(0, 0, 0, .16),
-        0 5px 16px -9px rgba(0, 0, 0, .80) !important;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, .45);
+    border-radius: 99px !important;
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18);
 }
 
-/* 危险操作：红色系玻璃 —— 仍然是红的，只是不再是色块 */
 [data-skin="glass"] .btn-danger {
-    background: linear-gradient(180deg, rgba(255, 120, 120, .42), rgba(220, 50, 55, .24)) !important;
-    color: #fff !important;
-    border: 1px solid rgba(255, 170, 170, .42) !important;
-    border-radius: 8px !important;
-    backdrop-filter: blur(10px) saturate(160%);
-    -webkit-backdrop-filter: blur(10px) saturate(160%);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, .42),
-        inset 0 -1px 0 rgba(0, 0, 0, .18),
-        0 6px 18px -8px rgba(220, 50, 55, .85) !important;
-    text-shadow: 0 1px 3px rgba(60, 0, 0, .55);
+    background: rgba(255, 77, 79, .20) !important;
+    border: 1px solid rgba(255, 77, 79, .48) !important;
+    color: #fca5a5 !important;
+    border-radius: 99px !important;
+    backdrop-filter: blur(8px) saturate(160%);
+    -webkit-backdrop-filter: blur(8px) saturate(160%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18);
 }
 
-/* 琥珀色小按钮 */
 [data-skin="glass"] .btn-copy-otp {
-    background: linear-gradient(180deg, rgba(255, 200, 90, .44), rgba(230, 150, 20, .24)) !important;
-    color: #fff !important;
-    border: 1px solid rgba(255, 220, 160, .42) !important;
-    border-radius: 8px !important;
-    backdrop-filter: blur(10px) saturate(160%);
-    -webkit-backdrop-filter: blur(10px) saturate(160%);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 5px 16px -9px rgba(230, 150, 20, .90) !important;
-    text-shadow: 0 1px 3px rgba(60, 35, 0, .55);
+    background: rgba(250, 173, 20, .20) !important;
+    border: 1px solid rgba(250, 173, 20, .50) !important;
+    color: #fde68a !important;
+    border-radius: 99px !important;
+    backdrop-filter: blur(8px) saturate(160%);
+    -webkit-backdrop-filter: blur(8px) saturate(160%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+
+[data-skin="glass"] .nav-btn {
+    background: rgba(255, 255, 255, .10) !important;
+    border: 1px solid rgba(255, 255, 255, .24) !important;
+    color: var(--lg-text) !important;
+    border-radius: 99px !important;
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
 }
 
 /* 关掉模糊时退回较实的底，保证按钮文字永远看得清 */
 [data-lg-blur="off"] .btn-primary,
-[data-lg-blur="off"] button.badge,
-[data-lg-blur="off"] .nav-btn,
-[data-lg-blur="off"] .btn,
 [data-lg-blur="off"] .btn-secondary,
 [data-lg-blur="off"] .btn-danger,
-[data-lg-blur="off"] .btn-copy-otp {
+[data-lg-blur="off"] .btn-copy-otp,
+[data-lg-blur="off"] .nav-btn,
+[data-lg-blur="off"] button.badge {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
 }
-[data-lg-blur="off"] .btn-primary,
-[data-lg-blur="off"] button.badge,
-[data-lg-blur="off"] .nav-btn,
-[data-lg-blur="off"] .btn {
-    background: linear-gradient(180deg, rgba(46, 128, 220, .95), rgba(20, 105, 195, .95)) !important;
-}
-[data-lg-blur="off"] .btn-secondary {
-    background: linear-gradient(180deg, rgba(58, 64, 88, .95), rgba(38, 44, 66, .95)) !important;
-}
-[data-lg-blur="off"] .btn-danger {
-    background: linear-gradient(180deg, rgba(196, 52, 58, .95), rgba(150, 34, 40, .95)) !important;
-}
-[data-lg-blur="off"] .btn-copy-otp {
-    background: linear-gradient(180deg, rgba(200, 140, 24, .95), rgba(160, 105, 12, .95)) !important;
-}
+[data-lg-blur="off"] .btn-primary { background: rgba(22, 105, 190, .95) !important; color: #fff !important; }
+[data-lg-blur="off"] .btn-secondary { background: rgba(48, 54, 76, .95) !important; color: #fff !important; }
+[data-lg-blur="off"] .btn-danger { background: rgba(180, 46, 52, .95) !important; color: #fff !important; }
+[data-lg-blur="off"] .btn-copy-otp { background: rgba(180, 124, 18, .95) !important; color: #fff !important; }
 
 /* ------------------------------------------------ 降级 */
 /* 不支持 backdrop-filter 的老 WebView（Chromium < 76）：用不透明底色兜住可读性 */
