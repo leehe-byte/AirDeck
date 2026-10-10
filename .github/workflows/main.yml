@@ -70,8 +70,47 @@ jobs:
           tag_name: ${{ github.ref_name }}
           body: |
             ## 🚀 OpenGW (WebManagerLite) ${{ env.VERSION }}
+
+            ### 🧊 液态玻璃版本上线
+
+            这一版把整个 Web 管理界面重做成了 iOS 26 那种液态玻璃风格 —— 而且不是普通的毛玻璃模糊，
+            是**真折射**：顶栏、侧边栏和内容卡片会按各自的圆角形状把背后的背景**弯折**，
+            边缘能看出内容被挤压，中间保持清晰。
+
+            **外观设置**（顶栏右上角 🧊，登录页在右下角）
+
+            - 玻璃效果三档：**液态**（真折射）/ **毛玻璃**（只模糊，最省）/ **关闭**（回到原样）
+            - 背景四种：极光 / 纯色 / 本地图片 / 网址
+            - 开关、分段控件、下拉框、操作按钮也全部玻璃化，配色沿用你熟悉的语义色
+            - 侧边栏导航跟随一个会滑动的玻璃气泡
+
+            **背景图网址（服务端缓存）**
+
+            填一个网址点「抓取并应用」，服务端下载一次后落盘，之后刷新、重启都读本地文件不再联网，
+            所以图片不会变，换设备 / 换浏览器看到的也是同一张。
+
+            支持两类地址：直接指向图片的 URL，或返回 JSON 的接口 —— 例如 Bing 每日一图
+            `https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1`，
+            会自动从返回的 JSON 里取出图片地址。
+
+            | 方法 | 路径 | 说明 |
+            |---|---|---|
+            | GET | `/api/appearance` | 读当前背景信息 |
+            | POST | `/api/appearance/background` | 抓取并缓存，body `{url}` |
+            | GET | `/api/appearance/background` | 返回图片本体 |
+            | DELETE | `/api/appearance/background` | 清除 |
+
+            **文档**
+
+            - 实现细节、性能处理和踩过的坑：[README 的「液态玻璃皮肤」一节](https://github.com/leehe-byte/WebManagerLite#-液态玻璃皮肤)
+            - 插件如何适配主题：`docs/PLUGIN_DEV.md` 第 9 节
+
+            ---
+
             自动编译结果包含：
             - `${{ env.FINAL_FILENAME }}`
+
+            > ⚠️ 需要 Root（Magisk / KernelSU）。修改关键网络参数可能导致设备断连，请熟悉 Root 操作后再使用。
           files: final_artifacts/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

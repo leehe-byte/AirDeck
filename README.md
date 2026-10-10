@@ -14,7 +14,7 @@
 
 ---
 
-## 🛠️ 当前功能矩阵 (Current Version: v3.1.0)
+## 🛠️ 当前功能矩阵 (Current Version: v4.0.0)
 
 ### ✅ 已稳定实现 (Stable)
 - **模块化架构**：全站逻辑实现 JS 模块化解耦（Overview, NetInfo 等），加载更高效，维护更简单。

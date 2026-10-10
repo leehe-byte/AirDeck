@@ -13,9 +13,9 @@ android {
         applicationId = "com.opengw.manager"
         minSdk = 26
         targetSdk = 33
-        versionCode = 37
-        versionName = "3.1.0"
-        // 编译产物命名为"应用名-版本-构建类型.apk"，如 OpenGW-3.1.0-release.apk
+        versionCode = 38
+        versionName = "4.0.0"
+        // 编译产物命名为"应用名-版本-构建类型.apk"，如 OpenGW-4.0.0-release.apk
         setProperty("archivesBaseName", "${rootProject.name}-${versionName}")
     }
 
