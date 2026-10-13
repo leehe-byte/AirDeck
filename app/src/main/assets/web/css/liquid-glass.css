@@ -108,6 +108,14 @@
     will-change: transform;
 }
 
+/* 玻璃副本里的 blob **不套 blur**。
+   radial-gradient 本身已经足够柔（transparent 72% 收尾），
+   再叠一层 filter: blur(6vmax) 只是白白生成 32 个 1500px 级的模糊图层
+   （8 个玻璃面 × 4 个 blob）—— Android WebView 上会闪烁、
+   甚至整块不渲染，因为撞上了图层 / 显存上限。
+   基础层只留 4 个，保持原样。 */
+.lg-aurora-copy .lg-blob { filter: none; }
+
 .lg-blob.b1 { background: radial-gradient(closest-side, #5865f2, transparent 72%); }
 .lg-blob.b2 { background: radial-gradient(closest-side, #06b6d4, transparent 72%); }
 .lg-blob.b3 { background: radial-gradient(closest-side, #db2777, transparent 72%); }
@@ -121,8 +129,11 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    opacity: .18;
-    mix-blend-mode: overlay;
+    /* 原来这里是 opacity .18 + mix-blend-mode: overlay。
+       混合模式会把父级拖进混合组，而每一份玻璃副本都有这个伪元素（9 份），
+       再叠上 .lg-refract 的 SVG filter —— 是 WebView 上渲染异常的经典配方。
+       改成普通的半透明叠色。 */
+    opacity: .12;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='140' height='140' filter='url(%23n)'/></svg>");
     background-size: 140px 140px;
 }
@@ -333,8 +344,10 @@
     background: transparent;
     overflow: hidden;
     border-right: 1px solid rgba(255, 255, 255, .08);
-    /* 提升为独立合成层，滑动时只走合成器，不触发重排/重绘 */
-    will-change: transform;
+    /* 这里**不能**留 will-change: transform ——
+       它和 transform 一样会让 background-attachment: fixed 退化成 scroll，
+       侧边栏玻璃里的背景就会错位到壁纸的另一块。
+       滑动动画期间本来就会用 .lg-motion 摘掉折射层，不缺这一下优化。 */
 }
 
 /* 滑动动画期间：把折射层整个撤掉。
@@ -459,9 +472,14 @@
 }
 
 [data-skin="glass"] .card:hover {
-    transform: translateY(-2px);
-    border-color: rgba(255, 255, 255, .22);
-    box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .85), inset 0 1px 0 rgba(255, 255, 255, .28);
+    /* 这里**不能**用 transform 做上浮。
+       卡片是 .lg-aurora-copy 的祖先，而祖先一旦有 transform，
+       background-attachment: fixed 就会退化成 scroll ——
+       副本锚定到自己的盒子，直接显示出壁纸的另一块。
+       现象就是"鼠标一悬停，玻璃里的背景就变成壁纸"。
+       改用阴影和描边做悬停反馈。 */
+    border-color: rgba(255, 255, 255, .26);
+    box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .85), inset 0 1px 0 rgba(255, 255, 255, .34);
 }
 
 /* ---- 液态档 + 卡片折射开启时 ----

@@ -141,21 +141,35 @@
         return nodes;
     }
 
-    var blobGroups = [];   // [{ nodes: [...] }, ...]
+    /* 两组 blob：基础层（base）和玻璃副本（copies）。
+       基础层每个 tick 都动；副本低频跟一次。
 
-    function stepBlobs(t) {
+       原因是副本不止一份：顶栏 + 侧边栏 + 每张卡各一套，
+       而每个 blob 是 62vmax 大小的模糊层 —— 8 个面就是 32 个大图层。
+       全部持续动画时在 Android WebView 上会闪烁甚至整块不渲染（图层上限）。
+       极光漂移本来就慢，副本每 1.5 秒跟一次肉眼看不出差别。 */
+    var blobGroups = [];   // [{ nodes: [...], base: bool }, ...]
+
+    function stepBlobGroup(g, t, m) {
+        var nodes = g.nodes;
+        for (var i = 0; i < BLOBS.length; i++) {
+            var b = BLOBS[i];
+            var a = t * b.sp + b.ph;
+            var x = (b.bx + Math.cos(a) * b.ampX) * m;
+            var y = (b.by + Math.sin(a * 0.83) * b.ampY) * m;
+            var s = 1 + 0.12 * Math.sin(a * 0.7);
+            nodes[i].style.transform =
+                'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) scale(' + s.toFixed(3) + ')';
+        }
+    }
+
+    /** which: 'base' | 'copies' */
+    function stepBlobs(t, which) {
         var m = Math.min(window.innerWidth, window.innerHeight);
         for (var gi = 0; gi < blobGroups.length; gi++) {
-            var nodes = blobGroups[gi].nodes;
-            for (var i = 0; i < BLOBS.length; i++) {
-                var b = BLOBS[i];
-                var a = t * b.sp + b.ph;
-                var x = (b.bx + Math.cos(a) * b.ampX) * m;
-                var y = (b.by + Math.sin(a * 0.83) * b.ampY) * m;
-                var s = 1 + 0.12 * Math.sin(a * 0.7);
-                nodes[i].style.transform =
-                    'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) scale(' + s.toFixed(3) + ')';
-            }
+            var g = blobGroups[gi];
+            if ((which === 'base') !== !!g.base) continue;
+            stepBlobGroup(g, t, m);
         }
     }
 
@@ -271,8 +285,10 @@
         el.insertBefore(frost, el.firstChild);
         el.insertBefore(layer, el.firstChild);
 
-        var group = { nodes: createBlobSet(copy) };
+        var group = { nodes: createBlobSet(copy), base: false };
         blobGroups.push(group);
+        // 立刻摆到当前相位，否则刚建出来时是 0 相位，和基础层对不上
+        stepBlobGroup(group, performance.now(), Math.min(window.innerWidth, window.innerHeight));
 
         var s = { cfg: cfg, el: el, layer: layer, copy: copy, group: group, filterId: null };
         applySurfaceFilter(s);
@@ -807,19 +823,30 @@
        锁到 ~15fps 能省掉大约 3/4 的开销，视觉上看不出区别。 */
     var BLOB_INTERVAL = 66;
     var lastBlobTs = -1e9;
+    /* 玻璃副本跟得慢很多（见 blobGroups 的说明） */
+    var COPY_BLOB_INTERVAL = 1500;
+    var lastCopyBlobTs = -1e9;
 
     function tick(t) {
         if (!bg.motion || document.hidden || !isOn()) { rafId = null; return; }
         if (t - lastBlobTs >= BLOB_INTERVAL) {
             lastBlobTs = t;
-            stepBlobs(t);
+            stepBlobs(t, 'base');
+        }
+        if (t - lastCopyBlobTs >= COPY_BLOB_INTERVAL) {
+            lastCopyBlobTs = t;
+            stepBlobs(t, 'copies');
         }
         rafId = requestAnimationFrame(tick);
     }
 
     function startMotion() {
         if (!isOn() || !bg.motion || document.hidden) return;
-        if (rafId === null) { lastBlobTs = -1e9; rafId = requestAnimationFrame(tick); }
+        if (rafId === null) {
+            lastBlobTs = -1e9;
+            lastCopyBlobTs = -1e9;
+            rafId = requestAnimationFrame(tick);
+        }
     }
 
     function stopMotion() {
@@ -839,7 +866,7 @@
         if (active) return;
         active = true;
         var base = document.getElementById('lg-aurora');
-        blobGroups = [{ nodes: createBlobSet(base) }];
+        blobGroups = [{ nodes: createBlobSet(base), base: true }];
         surfaces = [];
         for (var i = 0; i < CHROME_SURFACES.length; i++) {
             var el = document.querySelector(CHROME_SURFACES[i].sel);
