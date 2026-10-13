@@ -49,6 +49,7 @@
 
 <p style="text-align: center; font-size: 11px; color: var(--text-sub); margin-bottom: 30px;">© 2024 OpenGW Project.</p>
 
-<!-- 页面逻辑在 js/about.js（由 index.html 全局加载）。
-     不要写回内联脚本：loadPage 是用 innerHTML 注入页面的，
-     而浏览器不会执行通过 innerHTML 插入的脚本。 -->
+<!-- 页面逻辑在 js/main.js 的 AboutModule 里。
+     不要在这里写内联脚本：loadPage 是用 innerHTML 注入页面的，
+     浏览器不会执行通过 innerHTML 插入的脚本，写了也是死代码
+     （这里原本就有一份和 main.js 重复的 AboutModule，从来没跑过）。 -->

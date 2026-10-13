@@ -194,7 +194,7 @@ function initPageLogic(pageId) {
         PowerModule.init();
     } else if (pageId === 'terminal' && typeof TerminalModule !== 'undefined') {
         TerminalModule.init();
-    } else if (pageId === 'about' && typeof AboutModule !== 'undefined') {
+    } else if (pageId === 'about') {
         AboutModule.init();
     } else if (pageId === 'plugins-manager' && typeof PluginsManagerModule !== 'undefined') {
         PluginsManagerModule.init();
@@ -315,6 +315,18 @@ const AboutModule = {
         const saved = localStorage.getItem('default_start_page') || 'overview';
         const labels = { 'overview': '状态总览', 'net-info': '网络详情', 'power': '电源管理', 'remote': '远程控制', 'sms': '短信列表' };
         setText('start-page-picker', labels[saved] || '状态总览');
+        this.loadVersion();
+    },
+    // 版本号从服务端 /api/app 取（源头是 app/build.gradle.kts 的 versionName），
+    // 这样发版只要改 gradle，不用回来改页面。
+    loadVersion() {
+        Api.get('/api/app').then(res => {
+            const v = res && res.versionName;
+            if (v) setText('about-version', 'v' + v + ' Stable');
+        }).catch(() => {
+            // 取不到就明确说不知道，不要留一个 "…"，也不要显示假版本
+            setText('about-version', '版本未知');
+        });
     },
     showStartPagePicker() {
         const options = [{ label: '状态总览', value: 'overview' }, { label: '网络详情', value: 'net-info' }, { label: '电源管理', value: 'power' }, { label: '远程控制', value: 'remote' }, { label: '短信列表', value: 'sms' }];
