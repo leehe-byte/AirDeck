@@ -194,7 +194,7 @@ function initPageLogic(pageId) {
         PowerModule.init();
     } else if (pageId === 'terminal' && typeof TerminalModule !== 'undefined') {
         TerminalModule.init();
-    } else if (pageId === 'about') {
+    } else if (pageId === 'about' && typeof AboutModule !== 'undefined') {
         AboutModule.init();
     } else if (pageId === 'plugins-manager' && typeof PluginsManagerModule !== 'undefined') {
         PluginsManagerModule.init();
