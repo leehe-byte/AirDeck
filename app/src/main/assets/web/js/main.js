@@ -283,10 +283,10 @@ window.toggleVisibility = (target) => {
     const iconEl = el.nextElementSibling;
     if (el.textContent.includes('*')) {
         el.textContent = dataStore[target] || '--';
-        if (iconEl) iconEl.textContent = '🔓';
+        if (iconEl) iconEl.innerHTML = icon('unlock');
     } else {
         el.textContent = '***********';
-        if (iconEl) iconEl.textContent = '🔒';
+        if (iconEl) iconEl.innerHTML = icon('lock');
     }
 };
 
@@ -309,6 +309,13 @@ const ApiExtra = {
         if (this.currentCallback) this.currentCallback(val, label);
     }
 };
+
+// 生成一个图标。用于 JS 动态拼 HTML 的地方（模板字符串里没法写死 <use>）。
+// 图标定义在 index.html 的 #lg-icons 精灵图里。
+function icon(name, extraClass) {
+    return '<svg class="ico' + (extraClass ? ' ' + extraClass : '') +
+        '" aria-hidden="true"><use href="#i-' + name + '"/></svg>';
+}
 
 const AboutModule = {
     init() {
@@ -397,7 +404,7 @@ function makePluginNavItem(p) {
     a.className = 'nav-item plugin-nav-item';
     a.href = 'javascript:void(0)';
     a.setAttribute('data-page', p.id);
-    a.innerHTML = `<p>${escapeHtml(p.icon || '🧩')}</p> ${escapeHtml(p.title || p.name || p.id)}`;
+    a.innerHTML = `<p>${p.icon ? escapeHtml(p.icon) : icon('puzzle')}</p> ${escapeHtml(p.title || p.name || p.id)}`;
     a.onclick = () => {
         loadPage(p.id);
         document.body.classList.remove('sidebar-open');

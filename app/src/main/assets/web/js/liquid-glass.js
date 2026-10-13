@@ -921,8 +921,7 @@
     }
 
     /* 内联 SVG：不依赖设备字体。
-       之前关闭时把文字换成 🫧(U+1FAE7)，那是 Emoji 14 才有的字形，
-       老设备上直接渲染成豆腐块。 */
+       之前关闭时把文字换成 U+1FAE7（Emoji 14 才加入的字形），老设备上直接渲染成豆腐块。 */
     var ICON =
         '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" ' +
         'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
@@ -952,7 +951,7 @@
         m.innerHTML =
             '<div class="lg-modal-box" role="dialog" aria-label="外观设置">' +
             '  <div class="lg-modal-head"><h3>外观设置</h3>' +
-            '    <button class="lg-x" type="button" data-act="close">✕</button></div>' +
+            '    <button class="lg-x" type="button" data-act="close"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button></div>' +
             '  <div class="lg-modal-body">' +
 
             '    <div class="lg-sub">玻璃效果</div>' +

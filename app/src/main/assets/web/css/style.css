@@ -427,3 +427,16 @@ code {
 .btn-logout { border: none; background: rgba(255, 77, 79, 0.1); color: #ff4d4f; padding: 4px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; }
 .btn-theme { border: none; background: transparent; color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 16px; cursor: pointer; margin-right: 8px; }
 pre.log-area { background: #000; color: #0f0; padding: 10px; font-size: 11px; border-radius: 4px; height: 300px; overflow: auto; border: 1px solid #333; }
+
+/* ------------------------------------------------------------------ 图标
+   内联 SVG 精灵图（<svg id="lg-icons"> 里的 <symbol>）。
+   全部 24×24、描边式、currentColor —— 颜色自动跟随文字，尺寸跟随字号，
+   所以直接放在原来放 emoji 的位置即可。 */
+.ico {
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+    vertical-align: -0.14em;
+    flex: none;
+    overflow: visible;
+}

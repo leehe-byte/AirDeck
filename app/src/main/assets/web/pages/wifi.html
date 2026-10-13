@@ -1,6 +1,6 @@
 <div id="wifi-settings">
     <div class="page-header" style="display: flex; align-items: center; gap: 14px; margin-bottom: 20px;">
-        <div style="background: linear-gradient(135deg, #007aff 0%, #0056d6 100%); width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px;">📡</div>
+        <div style="background: linear-gradient(135deg, #007aff 0%, #0056d6 100%); width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px;"><svg class="ico" aria-hidden="true"><use href="#i-antenna"/></svg></div>
         <div>
             <h2 style="margin: 0; font-size: 18px; font-weight: 600;">WiFi 设置</h2>
             <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-sub);">配置无线网络参数与安全设置</p>
@@ -10,7 +10,7 @@
     <div class="card">
         <div class="card-header">
             <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="background: linear-gradient(135deg, #007aff 0%, #0056d6 100%); width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px;">📶</div>
+                <div style="background: linear-gradient(135deg, #007aff 0%, #0056d6 100%); width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px;"><svg class="ico" aria-hidden="true"><use href="#i-signal"/></svg></div>
                 <h3 style="margin: 0;">WiFi 基础设置</h3>
             </div>
             <span id="wifi-global-status" class="status-badge">正在获取...</span>
@@ -49,7 +49,7 @@
                     <label>无线密码</label>
                     <div class="value-box">
                         <input type="password" id="wifi-password" class="modern-input" style="border:none; background:transparent; margin-top:0; flex:1;">
-                        <i class="eye-toggle" onclick="WifiModule.togglePass()">🔒</i>
+                        <i class="eye-toggle" onclick="WifiModule.togglePass()"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg></i>
                     </div>
                 </div>
                 <div class="form-group">

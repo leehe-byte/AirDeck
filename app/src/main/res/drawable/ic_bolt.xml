@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 充电指示。原来是往电量文本里塞一个闪电 emoji，改由 MainActivity 作为
+         右侧 compound drawable 挂上去，图标本身不依赖设备字体。 -->
+    <path
+        android:fillColor="#FFB300"
+        android:pathData="M13,2 L4.8,13.6 H11 L10,22 L18.2,10.4 H12 Z" />
+</vector>

@@ -103,7 +103,7 @@ const SambaModule = {
             html += `
                 <div class="share-item" data-share-index="${index}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--bg-card);">
                     <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
-                        <span style="font-size: 24px;">📁</span>
+                        <span style="font-size: 24px;"><svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg></span>
                         <div style="flex: 1; min-width: 0;">
                             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                 <span style="font-size: 14px; font-weight: 600; color: var(--text);">${name}</span>
@@ -118,8 +118,8 @@ const SambaModule = {
                         </div>
                     </div>
                     <div style="display: flex; gap: 4px; flex-shrink: 0; margin-left: 8px;">
-                        <button class="btn btn-sm btn-secondary samba-edit-btn" data-share-index="${index}" style="padding: 4px 10px; font-size: 12px;">✏️</button>
-                        <button class="btn btn-sm btn-danger samba-delete-btn" data-share-index="${index}" style="padding: 4px 10px; font-size: 12px;">🗑️</button>
+                        <button class="btn btn-sm btn-secondary samba-edit-btn" data-share-index="${index}" style="padding: 4px 10px; font-size: 12px;"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg></button>
+                        <button class="btn btn-sm btn-danger samba-delete-btn" data-share-index="${index}" style="padding: 4px 10px; font-size: 12px;"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg></button>
                     </div>
                 </div>
             `;
@@ -164,7 +164,7 @@ const SambaModule = {
                     if (res && res.result === 'saved') {
                         document.getElementById('samba-add-modal').style.display = 'none';
                         await this.loadShares();
-                        showAlert('✅ 共享已添加，请重启 Samba 服务生效');
+                        showAlert('<svg class="ico" aria-hidden="true"><use href="#i-check"/></svg> 共享已添加，请重启 Samba 服务生效');
                     } else if (res && res.result === 'exists') {
                         showAlert('共享名称已存在');
                     } else {
@@ -197,7 +197,7 @@ const SambaModule = {
                     if (res && res.result === 'saved') {
                         document.getElementById('samba-edit-modal').style.display = 'none';
                         await this.loadShares();
-                        showAlert('✅ 共享已更新，请重启 Samba 服务生效');
+                        showAlert('<svg class="ico" aria-hidden="true"><use href="#i-check"/></svg> 共享已更新，请重启 Samba 服务生效');
                     } else { showAlert('保存失败'); }
                 } catch (e) { showAlert('编辑失败: ' + e.message); }
             };
@@ -225,7 +225,7 @@ const SambaModule = {
             const res = await Api.post('/api/samba/share/remove', { name: share.name });
             if (res && res.result === 'saved') {
                 await this.loadShares();
-                showAlert('✅ 共享已删除，请重启 Samba 服务生效');
+                showAlert('<svg class="ico" aria-hidden="true"><use href="#i-check"/></svg> 共享已删除，请重启 Samba 服务生效');
             } else { showAlert('删除失败'); }
         } catch (e) { showAlert('删除失败: ' + e.message); }
     }

@@ -677,8 +677,8 @@
 
 /* ------------------------------------------------ 皮肤切换按钮 */
 /* 用内联 SVG 而不是 emoji。
-   emoji 依赖设备字体 —— 🫧(U+1FAE7) 是 Emoji 14 才加的，
-   老设备字体里没有就渲染成豆腐块。SVG 不依赖任何字体。 */
+   emoji 依赖设备字体 —— U+1FAE7 是 Emoji 14 才加的，老设备字体里没有就渲染成豆腐块。
+   SVG 不依赖任何字体。 */
 #lg-skin-btn {
     display: inline-flex;
     align-items: center;

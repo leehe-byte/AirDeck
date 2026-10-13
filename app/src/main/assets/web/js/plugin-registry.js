@@ -98,7 +98,7 @@ const PluginRegistry = {
             box.className = 'card';
             box.style.marginBottom = '15px';
             box.innerHTML =
-                `<div class="card-header"><h3>${escapeHtml(card.icon || '🧩')} ${escapeHtml(card.title || '')}</h3></div>` +
+                `<div class="card-header"><h3>${card.icon ? escapeHtml(card.icon) : icon('puzzle')} ${escapeHtml(card.title || '')}</h3></div>` +
                 `<div class="card-body" id="${bodyId}"></div>`;
             container.appendChild(box);
         }

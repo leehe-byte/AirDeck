@@ -84,7 +84,7 @@ class CoreBackgroundService : Service() {
     private fun startHeartbeat() {
         heartbeatScheduler = Executors.newSingleThreadScheduledExecutor()
         heartbeatScheduler?.scheduleAtFixedRate({
-            Log.d(TAG, "💓 心跳检查: 服务存活中，网关状态正常")
+            Log.d(TAG, "心跳检查: 服务存活中，网关状态正常")
         }, 0, 30, TimeUnit.SECONDS)
     }
 

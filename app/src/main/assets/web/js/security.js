@@ -29,7 +29,7 @@ const SecurityModule = {
         }
 
         if (pwd.length < 8) {
-            info.textContent = "❌ 密码长度至少为 8 位";
+            info.innerHTML = icon('cross') + " 密码长度至少为 8 位";
             info.style.color = "#ff4d4f";
             return false;
         }
@@ -38,12 +38,12 @@ const SecurityModule = {
         const hasLetter = /[a-zA-Z]/.test(pwd);
 
         if (!hasNum || !hasLetter) {
-            info.textContent = "⚠️ 密码必须包含字母和数字";
+            info.innerHTML = icon('alert') + " 密码必须包含字母和数字";
             info.style.color = "#fa8c16";
             return false;
         }
 
-        info.textContent = "✅ 密码强度合格";
+        info.innerHTML = icon('check') + " 密码强度合格";
         info.style.color = "#52c41a";
         return true;
     },

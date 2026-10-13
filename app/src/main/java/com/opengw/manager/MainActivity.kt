@@ -17,6 +17,7 @@ import android.os.BatteryManager
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
 import java.net.NetworkInterface
 
 class MainActivity : AppCompatActivity() {
@@ -86,7 +87,17 @@ class MainActivity : AppCompatActivity() {
 
         val batteryText = findViewById<TextView>(R.id.batteryText)
         val batteryProgress = findViewById<ProgressBar>(R.id.batteryProgress)
-        batteryText.text = "$batteryPct%${if (isCharging) " ⚡" else ""} (${temp / 10.0}°C)"
+        batteryText.text = "$batteryPct% (${temp / 10.0}°C)"
+        // 充电指示原来是在文本里塞一个闪电 emoji。改成右侧挂一枚矢量图标：
+        // emoji 依赖设备字体，不同机型字形差异很大。
+        if (isCharging) {
+            val bolt = AppCompatResources.getDrawable(this, R.drawable.ic_bolt)
+            bolt?.setBounds(0, 0, bolt.intrinsicWidth, bolt.intrinsicHeight)
+            batteryText.setCompoundDrawables(null, null, bolt, null)
+            batteryText.compoundDrawablePadding = (6 * resources.displayMetrics.density).toInt()
+        } else {
+            batteryText.setCompoundDrawables(null, null, null, null)
+        }
         batteryProgress.progress = batteryPct
 
         // 内存信息

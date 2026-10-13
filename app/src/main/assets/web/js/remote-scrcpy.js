@@ -248,7 +248,7 @@
                 els.connect.style.display = 'inline-flex'; els.connect.disabled = false;
                 els.disconnect.style.display = 'none'; els.placeholder.style.display = 'flex';
                 els.canvas.style.display = 'none';
-                if (err) { els.error.textContent = '❌ ' + err; els.error.style.display = 'block'; }
+                if (err) { els.error.textContent = err; els.error.style.display = 'block'; }
             }
         };
         remote.onFpsUpdate = (fps) => { els.fps.textContent = fps + ' FPS'; };

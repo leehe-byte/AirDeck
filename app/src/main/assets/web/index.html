@@ -38,15 +38,60 @@
 </head>
 
 <body>
+<svg id="lg-icons" width="0" height="0" aria-hidden="true" focusable="false"
+     style="position:absolute;overflow:hidden">
+  <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></symbol>
+  <symbol id="i-contrast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20v-5M12 20V5M18 20v-9"/><path d="M3 20h18"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.6 12 3l9 7.6"/><path d="M5.5 9.6V21h13V9.6"/><path d="M10 21v-5h4v5"/></symbol>
+  <symbol id="i-antenna" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="2"/><path d="M12 13v8"/><path d="M8.5 7.5a5 5 0 0 0 0 7M15.5 7.5a5 5 0 0 1 0 7"/><path d="M5.5 4.5a9 9 0 0 0 0 13M18.5 4.5a9 9 0 0 1 0 13"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5 6L13 6l2.5 6H21"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h3.6l2 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-smartphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18.5h2"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-unlock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.6-1.7"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m7 9.5 3 2.5-3 2.5M12.5 15H17"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 9-11.5h-6.5z"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v5"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/></symbol>
+  <symbol id="i-puzzle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3h4v1.5a2 2 0 1 1 4 0V6h2.5a1 1 0 0 1 1 1v3.5h-1.5a2 2 0 1 0 0 4H21.5V18a1 1 0 0 1-1 1H17v-1.5a2 2 0 1 0-4 0V19h-3a1 1 0 0 1-1-1v-3H7.5a2 2 0 1 1 0-4H9V7a1 1 0 0 1 1-1h.5z"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 18h5"/><path d="M10.5 21h3"/><path d="M12 3a6 6 0 0 0-3.8 10.6V18h7.6v-4.4A6 6 0 0 0 12 3z"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></symbol>
+  <symbol id="i-signal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20v-4M9.3 20v-8M14.7 20V8M20 20V4"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14.5 9.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></symbol>
+  <symbol id="i-ban" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></symbol>
+  <symbol id="i-nfc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5a13 13 0 0 1 0 15"/><path d="M10 7.5a9 9 0 0 1 0 9"/><path d="M14 10.5a5 5 0 0 1 0 3"/><circle cx="18" cy="12" r="1.6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12.4 2.6 2.6L16 9.6"/></symbol>
+  <symbol id="i-cross" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2.8 20h18.4z"/><path d="M12 10v4.5M12 17.6v.4"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.4"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6 18 18M18 6 6 18"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9.5 7V5h5v2"/><path d="M6.5 7 7.6 20a1 1 0 0 0 1 1h6.8a1 1 0 0 0 1-1L17.5 7"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L20 8l-4-4L4 16z"/><path d="m14.5 5.5 4 4"/></symbol>
+  <symbol id="i-package" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4 20h16"/></symbol>
+  <symbol id="i-battery" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 10.5v3"/><path d="M6 10.5v3M10 10.5v3"/></symbol>
+  <symbol id="i-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3.6a5 5 0 0 0-6.1 6.3L3 16.3 7.7 21l6.4-6.4a5 5 0 0 0 6.3-6.1l-2.8 2.8-2.9-2.9z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5A8 8 0 0 0 6.3 5.9L4 8"/><path d="M4 4v4h4"/><path d="M4 12.5a8 8 0 0 0 13.7 5.6L20 16"/><path d="M20 20v-4h-4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.9 8.9 0 1 0 11.1 11.1z"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9"/><path d="M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9"/><path d="M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15"/><path d="M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-droplet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5c0 0 6 6.3 6 10.2a6 6 0 0 1-12 0C6 9.8 12 3.5 12 3.5z"/></symbol>
+  <symbol id="i-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c3.4 2 5.5 5.6 5.5 9.6L14 16h-4l-3.5-3.4C6.5 8.6 8.6 5 12 3z"/><circle cx="12" cy="9.8" r="1.6"/><path d="M9 17c-1 1.6-1 3-1 4 1.2 0 2.6 0 4-1M15 17c1 1.6 1 3 1 4-1.2 0-2.6 0-4-1"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1.1 5.9-5.3-2.9-5.3 2.9 1.1-5.9L3.5 9.7l5.9-.8z"/></symbol>
+</svg>
 <header id="header">
     <div class="header-container">
         <div class="brand">
-            <div id="menu-toggle">☰</div>
+            <div id="menu-toggle"><svg class="ico" aria-hidden="true"><use href="#i-menu"/></svg></div>
             <span class="logo">B</span>
             <span class="name">BridgeLink <span>Manager</span></span>
         </div>
         <div class="top-status">
-            <button id="theme-btn" class="btn-theme" title="切换主题">🌓</button>
+            <button id="theme-btn" class="btn-theme" title="切换主题"><svg class="ico" aria-hidden="true"><use href="#i-contrast"/></svg></button>
             <span id="system-info" class="status-badge">在线</span>
             <button id="logout-btn" class="btn-logout">退出</button>
         </div>
@@ -59,17 +104,17 @@
         <nav class="nav-menu">
             <!-- 1. 状态 -->
             <div class="nav-section">状态</div>
-            <a href="javascript:void(0)" class="nav-item active" data-page="overview"><p>📊</p> 状态总览</a>
+            <a href="javascript:void(0)" class="nav-item active" data-page="overview"><p><svg class="ico" aria-hidden="true"><use href="#i-chart"/></svg></p> 状态总览</a>
             
             <!-- 2. 网络 -->
             <div class="nav-section collapsible" onclick="this.classList.toggle('closed')">
                 网络配置 <span class="toggle-icon"></span>
             </div>
             <div class="section-content">
-                <a href="javascript:void(0)" class="nav-item" data-page="lan"><p>🏠</p> 局域网设置</a>
-                <a href="javascript:void(0)" class="nav-item" data-page="net-info"><p>ℹ️</p> 网络详情</a>
-                <a href="javascript:void(0)" class="nav-item" data-page="wifi"><p>📡</p> 无线配置</a>
-                <a href="javascript:void(0)" class="nav-item" data-page="net-debug"><p>🩺</p> 网络调试</a>
+                <a href="javascript:void(0)" class="nav-item" data-page="lan"><p><svg class="ico" aria-hidden="true"><use href="#i-home"/></svg></p> 局域网设置</a>
+                <a href="javascript:void(0)" class="nav-item" data-page="net-info"><p><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg></p> 网络详情</a>
+                <a href="javascript:void(0)" class="nav-item" data-page="wifi"><p><svg class="ico" aria-hidden="true"><use href="#i-antenna"/></svg></p> 无线配置</a>
+                <a href="javascript:void(0)" class="nav-item" data-page="net-debug"><p><svg class="ico" aria-hidden="true"><use href="#i-activity"/></svg></p> 网络调试</a>
             </div>
 
             <!-- 3. 高级 -->
@@ -77,7 +122,7 @@
                 应用服务 <span class="toggle-icon"></span>
             </div>
             <div class="section-content">
-                <a href="javascript:void(0)" class="nav-item" data-page="samba"><p>📂</p> Samba 共享</a>
+                <a href="javascript:void(0)" class="nav-item" data-page="samba"><p><svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg></p> Samba 共享</a>
             </div>
             
             <!-- 4. 系统 -->
@@ -85,23 +130,23 @@
                 系统管理 <span class="toggle-icon"></span>
             </div>
             <div class="section-content">
-                <a href="javascript:void(0)" class="nav-item" data-page="remote"><p>📱</p> 远程控制</a>
-                <a href="javascript:void(0)" class="nav-item" data-page="security"><p>🔒</p> 安全设置</a>
-                <a href="javascript:void(0)" class="nav-item" data-page="at-command"><p>⚙️</p> AT 指令</a>
-                <a href="javascript:void(0)" class="nav-item" data-page="terminal"><p>💻</p> Web 终端</a>
-                <a href="javascript:void(0)" class="nav-item" data-page="power"><p>⚡</p> 电源管理</a>
-                <a href="javascript:void(0)" class="nav-item" data-page="usb-port"><p>🔌</p> ADB 控制</a>
+                <a href="javascript:void(0)" class="nav-item" data-page="remote"><p><svg class="ico" aria-hidden="true"><use href="#i-smartphone"/></svg></p> 远程控制</a>
+                <a href="javascript:void(0)" class="nav-item" data-page="security"><p><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg></p> 安全设置</a>
+                <a href="javascript:void(0)" class="nav-item" data-page="at-command"><p><svg class="ico" aria-hidden="true"><use href="#i-sliders"/></svg></p> AT 指令</a>
+                <a href="javascript:void(0)" class="nav-item" data-page="terminal"><p><svg class="ico" aria-hidden="true"><use href="#i-terminal"/></svg></p> Web 终端</a>
+                <a href="javascript:void(0)" class="nav-item" data-page="power"><p><svg class="ico" aria-hidden="true"><use href="#i-zap"/></svg></p> 电源管理</a>
+                <a href="javascript:void(0)" class="nav-item" data-page="usb-port"><p><svg class="ico" aria-hidden="true"><use href="#i-plug"/></svg></p> ADB 控制</a>
             </div>
             
             <!-- 5. 通信 -->
             <div class="nav-section">通信</div>
-            <a href="javascript:void(0)" class="nav-item" data-page="sms"><p>✉️</p> 短信列表</a>
+            <a href="javascript:void(0)" class="nav-item" data-page="sms"><p><svg class="ico" aria-hidden="true"><use href="#i-mail"/></svg></p> 短信列表</a>
 
             <div class="nav-section">扩展</div>
-            <a href="javascript:void(0)" class="nav-item" data-page="plugins-manager"><p>🧩</p> 插件管理</a>
+            <a href="javascript:void(0)" class="nav-item" data-page="plugins-manager"><p><svg class="ico" aria-hidden="true"><use href="#i-puzzle"/></svg></p> 插件管理</a>
 
             <div class="nav-section">关于</div>
-            <a href="javascript:void(0)" class="nav-item" data-page="about"><p>💡</p> 关于本项目</a>
+            <a href="javascript:void(0)" class="nav-item" data-page="about"><p><svg class="ico" aria-hidden="true"><use href="#i-bulb"/></svg></p> 关于本项目</a>
         </nav>
     </aside>
 

@@ -176,9 +176,9 @@ const WifiModule = {
         const input = document.getElementById('wifi-password');
         const icon = input.nextElementSibling;
         if (input.type === 'password') {
-            input.type = 'text'; icon.textContent = '🔓';
+            input.type = 'text'; icon.innerHTML = icon('unlock');
         } else {
-            input.type = 'password'; icon.textContent = '🔒';
+            input.type = 'password'; icon.innerHTML = icon('lock');
         }
     },
 

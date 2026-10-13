@@ -36,7 +36,7 @@ const PowerModule = {
                 if (listEl) {
                     listEl.innerHTML = history.map(item => `
                         <div style="display: flex; justify-content: space-between; padding: 8px 0; color: rgba(255,255,255,0.8); font-size: 13px;">
-                            <span>📅 ${this.formatDate(item.date)}</span>
+                            <span><svg class="ico" aria-hidden="true"><use href="#i-calendar"/></svg> ${this.formatDate(item.date)}</span>
                             <span style="font-weight: bold; color: #fff;">${this.formatDuration(item.duration)}</span>
                         </div>
                     `).join('');

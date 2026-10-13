@@ -28,14 +28,14 @@ const PluginsManagerModule = {
                 <div style="padding: 12px 0; border-bottom: 1px solid var(--border-color);">
                     <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
                         <div style="flex:1 1 100%; min-width:0;">
-                            <b>${escapeHtml(p.icon || '🧩')} ${escapeHtml(p.name || p.id)}</b>
-                            <span style="font-size:11px; color:var(--text-sub);"> v${escapeHtml(p.version || '?')} · ${escapeHtml(p.id)} ${p.signed ? '<span style="color:var(--success);">✅ 已签名</span>' : '<span style="color:#faad14;">⚠️ 未签名</span>'}</span>
+                            <b>${p.icon ? escapeHtml(p.icon) : icon('puzzle')} ${escapeHtml(p.name || p.id)}</b>
+                            <span style="font-size:11px; color:var(--text-sub);"> v${escapeHtml(p.version || '?')} · ${escapeHtml(p.id)} ${p.signed ? '<span style="color:var(--success);"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg> 已签名</span>' : '<span style="color:#faad14;"><svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg> 未签名</span>'}</span>
                             <div style="font-size:12px; color:var(--text-sub); margin-top:2px; word-break:break-all;">${escapeHtml(p.description || '')}</div>
                         </div>
                         <div style="display:flex; gap:6px; flex-wrap:wrap;">
                             <button class="badge" style="border:none; cursor:pointer;" onclick="PluginsManagerModule.run('${p.id}','start')">▶ 启动</button>
                             <button class="badge" style="border:none; cursor:pointer;" onclick="PluginsManagerModule.run('${p.id}','stop')">⏹ 停止</button>
-                            <button class="badge" style="background:var(--danger); color:#fff; border:none; cursor:pointer;" onclick="PluginsManagerModule.uninstall('${p.id}')">🗑 卸载</button>
+                            <button class="badge" style="background:var(--danger); color:#fff; border:none; cursor:pointer;" onclick="PluginsManagerModule.uninstall('${p.id}')"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg> 卸载</button>
                         </div>
                     </div>
                 </div>
@@ -75,9 +75,9 @@ const PluginsManagerModule = {
         // 2. 确认框展示插件信息
         const infoHtml = `
             <div style="text-align:center; margin-bottom:12px;">
-                <div style="font-size:32px; line-height:1.2;">${escapeHtml(info.icon || '🧩')}</div>
+                <div style="font-size:32px; line-height:1.2;">${info.icon ? escapeHtml(info.icon) : icon('puzzle')}</div>
                 <div style="font-size:16px; font-weight:bold; margin-top:4px;">${escapeHtml(info.name || info.id)}</div>
-                <div style="font-size:12px; color:var(--text-sub); margin-top:2px;">v${escapeHtml(info.version || '?')} · ${escapeHtml(info.id)} ${info.signed ? '<span style="color:var(--success);">✅ 已签名</span>' : '<span style="color:#faad14;">⚠️ 未签名</span>'}${info.requiresRoot ? ' · <span style="color:#fa8c16;">需 root</span>' : ''}</div>
+                <div style="font-size:12px; color:var(--text-sub); margin-top:2px;">v${escapeHtml(info.version || '?')} · ${escapeHtml(info.id)} ${info.signed ? '<span style="color:var(--success);"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg> 已签名</span>' : '<span style="color:#faad14;"><svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg> 未签名</span>'}${info.requiresRoot ? ' · <span style="color:#fa8c16;">需 root</span>' : ''}</div>
             </div>
             <div style="font-size:12px; color:var(--text-sub); text-align:left; line-height:1.7; border-top:1px solid var(--border-color); padding-top:10px;">${escapeHtml(info.description || '（无描述）')}</div>`;
         const ok = await showConfirm(infoHtml, '确认安装插件');
