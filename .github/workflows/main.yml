@@ -108,6 +108,24 @@ jobs:
             | GET | `/api/appearance/background` | 返回图片本体 |
             | DELETE | `/api/appearance/background` | 清除 |
 
+            ### 🔧 本次修复
+
+            - **鼠标悬停在卡片上时，玻璃里的背景会跳成壁纸的另一块。**
+              卡片悬停原来用了 `transform` 上浮，而祖先只要有 transform，
+              `background-attachment: fixed` 就会退化成 `scroll`，副本不再锚定视口。
+              已改用阴影 + 描边做悬停反馈；`#sidebar` 上同样的 `will-change: transform` 也一并移除。
+
+            - **极光背景下界面闪烁、甚至整块不渲染。**
+              每个光斑是 `62vmax` 大小加 `blur(6vmax)` 的图层，而每个玻璃面都会复制一整套，
+              8 个面就是 32 个大模糊图层，撞上 WebView 的图层上限。
+              现在副本里的光斑不再套模糊，并把更新频率从每帧降到 1.5 秒一次；
+              噪点层也去掉了 `mix-blend-mode`（混合模式叠在 SVG 滤镜上容易出渲染问题）。
+
+            - **滚动时玻璃内部的背景有明显延迟。** 照片 / 纯色背景改用 CSS
+              `background-attachment: fixed` 自己锚定视口，不再需要 JS 每帧对位，延迟归零。
+
+            - **关于页的版本号会自动识别了**，不用每次发版手动改页面。
+
             **文档**
 
             - 实现细节、性能处理和踩过的坑：[README 的「液态玻璃皮肤」一节](https://github.com/leehe-byte/WebManagerLite#-液态玻璃皮肤)
