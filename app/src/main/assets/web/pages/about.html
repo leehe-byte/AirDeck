@@ -2,7 +2,7 @@
     <div class="logo" style="width: 60px; height: 60px; font-size: 32px; margin: 0 auto 20px;">B</div>
     <h2 style="font-size: 24px; margin-bottom: 8px;">OpenGW Lite Manager</h2>
     <p style="color: var(--text-sub); font-size: 14px;">专为 Android 网关设备打造的高性能管理工具</p>
-    <div class="badge" style="margin-top: 15px;">v3.1.0 Stable</div>
+    <div class="badge" id="about-version" style="margin-top: 15px;">…</div>
 </div>
 
 <!-- 启动设置 -->
@@ -56,6 +56,15 @@
             const saved = localStorage.getItem('default_start_page') || 'overview';
             const labels = { 'overview': '状态总览', 'net-info': '网络详情', 'power': '电源管理', 'remote': '远程控制', 'sms': '短信列表' };
             setText('start-page-picker', labels[saved] || '状态总览');
+            this.loadVersion();
+        },
+        // 版本号从服务端 /api/app 取（源头是 app/build.gradle.kts 的 versionName），
+        // 这样发版只需要改 gradle，不用再回来改这个页面。
+        loadVersion() {
+            Api.get('/api/app').then(res => {
+                const v = res && res.versionName;
+                if (v) setText('about-version', 'v' + v + ' Stable');
+            }).catch(() => {});
         },
         showStartPagePicker() {
             const options = [

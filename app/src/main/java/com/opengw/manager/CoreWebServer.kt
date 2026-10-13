@@ -115,6 +115,22 @@ class CoreWebServer(private val context: Context, private val port: Int) {
         else java.io.File(appearanceDir, name)
     }
 
+    /** 应用自身版本。About 页用它自动显示版本号，发版只改 build.gradle.kts 即可。
+     *  写成类级函数是因为路由 lambda 里的 `context` 会被 Ktor 的同名成员遮蔽。 */
+    private fun appVersionJson(): JSONObject = try {
+        val p = context.packageManager.getPackageInfo(context.packageName, 0)
+        JSONObject().apply {
+            put("versionName", p.versionName ?: "")
+            put("versionCode", if (Build.VERSION.SDK_INT >= 28) p.longVersionCode else p.versionCode.toLong())
+        }
+    } catch (e: Exception) {
+        Log.e(TAG, "read app version: ${e.message}")
+        JSONObject().apply {
+            put("versionName", "")
+            put("versionCode", 0L)
+        }
+    }
+
     private fun appearanceJson(): JSONObject {
         val meta = readBgMeta()
         val f = bgImageFile(meta)
@@ -442,6 +458,15 @@ class CoreWebServer(private val context: Context, private val port: Int) {
                         }
                     }
                     call.respondText(result.toString(), ContentType.Application.Json)
+                }
+
+                // 应用自身版本。About 页靠它自动显示版本号，
+                // 不用每次发版都去改页面里的硬编码字符串。
+                // 唯一来源是 app/build.gradle.kts 的 versionName / versionCode。
+                // 注意：路由 lambda 里不能直接写 context —— 它会被 Ktor 的同名成员遮蔽，
+                // 所以走类级函数。
+                get("/api/app") {
+                    call.respondText(appVersionJson().toString(), ContentType.Application.Json)
                 }
 
                 // ===== 外观：自定义背景图（服务端缓存）=====

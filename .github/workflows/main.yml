@@ -111,7 +111,8 @@ jobs:
             **文档**
 
             - 实现细节、性能处理和踩过的坑：[README 的「液态玻璃皮肤」一节](https://github.com/leehe-byte/WebManagerLite#-液态玻璃皮肤)
-            - 插件如何适配主题：`docs/PLUGIN_DEV.md` 第 9 节
+            - 主题 / 样式适配指南：[docs/THEME.md](https://github.com/leehe-byte/WebManagerLite/blob/feature/liquid-glass/docs/THEME.md)
+            - 插件开发：`docs/PLUGIN_DEV.md`
 
             ---
 
