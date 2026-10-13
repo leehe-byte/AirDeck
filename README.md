@@ -2,7 +2,7 @@
 
 一个运行在某兴安卓随身 WiFi 上的网关管理工具，增加一些高级功能，用来替换原厂简陋受限的 Web 管理页面。我自己用的，开源出来，同款设备的朋友如果喜欢的话可以拿去用。
 
-[WebManagerLite-mobile](https://github.com/leehe-byte/WebManagerLite-mobile)：手机端免登录管理版本，可切换官方与自用web
+[AirDeck Mobile](https://github.com/leehe-byte/AirDeck-mobile)：手机端免登录管理版本，可切换官方与自用web
 
 ---
 
