@@ -1,5 +1,5 @@
 /**
- * BridgeLink API 驱动框架
+ * AirDeck API 驱动框架
  */
 const Api = {
     // 通用请求

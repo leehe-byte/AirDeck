@@ -1,5 +1,5 @@
 /**
- * BridgeLink Manager v2.0.3 - 核心框架逻辑
+ * AirDeck v2.0.3 - 核心框架逻辑
  */
 document.addEventListener('DOMContentLoaded', () => {
     if (sessionStorage.getItem('isLoggedIn') !== 'true') {

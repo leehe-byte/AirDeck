@@ -15,7 +15,7 @@ android {
         targetSdk = 33
         versionCode = 39
         versionName = "4.0.1"
-        // 编译产物命名为"应用名-版本-构建类型.apk"，如 OpenGW-4.0.1-release.apk
+        // 编译产物命名为"应用名-版本-构建类型.apk"，如 AirDeck-4.0.1-release.apk
         setProperty("archivesBaseName", "${rootProject.name}-${versionName}")
     }
 

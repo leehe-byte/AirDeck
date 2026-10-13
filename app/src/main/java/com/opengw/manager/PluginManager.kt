@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 import java.util.zip.ZipInputStream
 
 /**
- * 插件管理器 - OpenGW 插件系统
+ * 插件管理器 - AirDeck 插件系统
  *
  * 插件包为 .owpkg 格式（zip 压缩包），结构：
  *   manifest.json  必填：id / name / entryJs 等元数据

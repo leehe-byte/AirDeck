@@ -1,5 +1,5 @@
 /**
- * PluginRegistry - OpenGW 插件注册表
+ * PluginRegistry - AirDeck 插件注册表
  *
  * 插件前端入口（manifest.json 的 entryJs）调用 PluginRegistry.register({...}) 注册自身。
  * 核心框架只依赖该注册表渲染菜单 / 加载页面 / 刷新 overview 卡片，插件可完全动态增删。

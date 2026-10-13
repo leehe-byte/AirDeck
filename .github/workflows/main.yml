@@ -60,7 +60,7 @@ jobs:
           fi
           
           # 定义更正式的文件名
-          OUTPUT_NAME="WebManagerLite-${VERSION}-release.apk"
+          OUTPUT_NAME="AirDeck-${VERSION}-release.apk"
           
           # 移动并重命名
           mkdir -p final_artifacts
@@ -74,10 +74,10 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          name: WebManagerLite ${{ env.VERSION }}
+          name: AirDeck ${{ env.VERSION }}
           tag_name: ${{ github.ref_name }}
           body: |
-            ## 🚀 OpenGW (WebManagerLite) ${{ env.VERSION }}
+            ## 🚀 AirDeck (AirDeck) ${{ env.VERSION }}
 
             ### 🧊 液态玻璃版本上线
 
@@ -128,8 +128,8 @@ jobs:
 
             **文档**
 
-            - 实现细节、性能处理和踩过的坑：[README 的「液态玻璃皮肤」一节](https://github.com/leehe-byte/WebManagerLite#-液态玻璃皮肤)
-            - 主题 / 样式适配指南：[docs/THEME.md](https://github.com/leehe-byte/WebManagerLite/blob/feature/liquid-glass/docs/THEME.md)
+            - 实现细节、性能处理和踩过的坑：[README 的「液态玻璃皮肤」一节](https://github.com/${{ github.repository }}#-液态玻璃皮肤)
+            - 主题 / 样式适配指南：[docs/THEME.md](https://github.com/${{ github.repository }}/blob/HEAD/docs/THEME.md)
             - 插件开发：`docs/PLUGIN_DEV.md`
 
             ---

@@ -11,7 +11,7 @@ class WakeLockManager(context: Context) {
     fun acquire(tag: String) {
         if (wakeLock?.isHeld == true) return
         
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WebManagerLite:$tag").apply {
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AirDeck:$tag").apply {
             acquire()
         }
         Log.i("WakeLock", "WakeLock acquired: $tag")

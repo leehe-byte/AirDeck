@@ -1,5 +1,5 @@
 /**
- * BridgeLink Manager - 登录逻辑
+ * AirDeck - 登录逻辑
  */
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');

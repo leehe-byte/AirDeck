@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit
 
 class CoreBackgroundService : Service() {
     private val TAG = "保活服务"
-    private val CHANNEL_ID = "WebManagerLite_Service"
+    private val CHANNEL_ID = "AirDeck_Service"
     private val NOTIFICATION_ID = 1001
     
     private var webServer: CoreWebServer? = null

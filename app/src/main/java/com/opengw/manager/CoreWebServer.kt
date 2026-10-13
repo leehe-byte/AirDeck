@@ -148,7 +148,7 @@ class CoreWebServer(private val context: Context, private val port: Int) {
     private fun bgGet(url: String): Triple<Boolean, String, ByteArray> {
         val req = okhttp3.Request.Builder()
             .url(url)
-            .header("User-Agent", "Mozilla/5.0 (Linux; Android 13) BridgeLink")
+            .header("User-Agent", "Mozilla/5.0 (Linux; Android 13) AirDeck")
             .build()
         bgHttp.newCall(req).execute().use { r ->
             val ct = r.header("Content-Type") ?: ""

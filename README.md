@@ -1,8 +1,8 @@
-# OpenGW (WebManagerLite自用)
+# AirDeck
 
 一个运行在某兴安卓随身 WiFi 上的网关管理工具，增加一些高级功能，用来替换原厂简陋受限的 Web 管理页面。我自己用的，开源出来，同款设备的朋友如果喜欢的话可以拿去用。
 
-[OpenGW-mobile](https://github.com/leehe-byte/WebManagerLite-mobile)：手机端免登录管理版本，可切换官方与自用web
+[WebManagerLite-mobile](https://github.com/leehe-byte/WebManagerLite-mobile)：手机端免登录管理版本，可切换官方与自用web
 
 ---
 
@@ -161,8 +161,8 @@ Webshell部分使用了tsl0922的[ttyd](https://github.com/tsl0922/ttyd.git)项�
 
 ## 我想说的一些话，关于本项目
 这个md是ai写的，我每次看到这些老感觉乖乖的，我就想在最后写一些我的想法。
-这是我自己用的一个软件吧，从一开始拿deepseek写了基础，后面又换成了gemini写了大部分的代码，后面又换到了deepseek到现在，一直都没想好这个软件叫啥比较好，名字是我让ai随便起的，说不定哪天能改一个好名字。
-我比较喜欢openwrt的前端和交互，所以风格上比较模仿openwrt。前端里有很多emoji，也懒得换图片，能用就行。
+这是我自己用的一个软件吧，从一开始拿deepseek写了基础，后面又换成了gemini写了大部分的代码，后面又换到了deepseek到现在。名字换过好几轮，现在叫 AirDeck —— 主力设备是 U30 Air，Deck 就是控制台的意思。
+我比较喜欢openwrt的前端和交互，所以风格上比较模仿openwrt。界面以前全是emoji，现在换成了一套自己画的线性图标。
 如果有大佬看到了这个小垃圾，也希望嘴下留情。
 前一段时间简简单单加了插件系统，有点小问题，会慢慢完善的。
 后续会一直随缘提交，如果你要是看上了我这个小垃圾软件的话，也希望把你宝贵的意见留下来❤。
