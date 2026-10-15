@@ -7,7 +7,10 @@
 一句话原则：**只用 CSS 变量和现成的类，不要写死颜色、不要另造一套。**
 
 - 插件开发的其他内容见 [PLUGIN_DEV.md](PLUGIN_DEV.md)
-- 液态玻璃的实现原理、性能处理和踩过的坑见 [README 的「液态玻璃皮肤」一节](../README.md#-液态玻璃皮肤)
+- **液态玻璃本身的实现原理**（想自己做一个、或者想改折射参数）：
+  [LIQUID-GLASS-WEB.md](LIQUID-GLASS-WEB.md)（Web）·
+  [LIQUID-GLASS-ANDROID.md](LIQUID-GLASS-ANDROID.md)（Android）
+- 本项目皮肤的功能说明与已知限制见 [README 的「液态玻璃皮肤」一节](../README.md#-液态玻璃皮肤)
 
 ---
 
